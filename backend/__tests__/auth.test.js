@@ -5,8 +5,8 @@ import { createTestApp } from './helpers.js';
 describe('Auth Routes', () => {
   let app, db;
 
-  beforeEach(() => {
-    ({ app, db } = createTestApp());
+  beforeEach(async () => {
+    ({ app, db } = await createTestApp());
   });
 
   describe('GET /api/v1/auth/status', () => {

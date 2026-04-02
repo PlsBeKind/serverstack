@@ -5,8 +5,8 @@ import { checkAlerts } from '../src/jobs/alertChecker.js';
 describe('Alert Checker', () => {
   let db;
 
-  beforeEach(() => {
-    db = initDatabase(':memory:');
+  beforeEach(async () => {
+    db = await initDatabase(':memory:');
   });
 
   it('should create alert for expiring contracts', () => {

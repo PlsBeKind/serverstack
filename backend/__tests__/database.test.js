@@ -4,8 +4,8 @@ import { initDatabase } from '../src/database.js';
 describe('Database', () => {
   let db;
 
-  beforeEach(() => {
-    db = initDatabase(':memory:');
+  beforeEach(async () => {
+    db = await initDatabase(':memory:');
   });
 
   it('should create all tables', () => {

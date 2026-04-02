@@ -13,11 +13,11 @@ import exportRoutes from '../src/routes/export.js';
 /**
  * Create a fresh app + in-memory DB for testing.
  */
-export function createTestApp() {
+export async function createTestApp() {
   process.env.JWT_SECRET = 'test-secret-key';
   process.env.ENCRYPTION_KEY = 'test-encryption-key-32-bytes!!!';
 
-  const db = initDatabase(':memory:');
+  const db = await initDatabase(':memory:');
   const app = express();
   app.use(express.json({ limit: '10mb' }));
 
