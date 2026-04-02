@@ -1,0 +1,18 @@
+{
+  "name": "serverstack",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Multi-provider server inventory & cost tracker",
+  "scripts": {
+    "dev": "npm run dev:backend & npm run dev:frontend",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "test": "npm run test:backend && npm run test:frontend",
+    "test:backend": "cd backend && npm test",
+    "test:frontend": "cd frontend && npm test",
+    "test:watch": "cd backend && npm run test:watch & cd frontend && npm run test:watch"
+  },
+  "license": "AGPL-3.0"
+}
