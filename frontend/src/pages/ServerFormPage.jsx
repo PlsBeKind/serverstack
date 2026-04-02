@@ -4,6 +4,18 @@ import { useTranslation } from 'react-i18next';
 import { ArrowLeft } from 'lucide-react';
 import { api } from '../api/client.js';
 
+const inputStyle = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
+
+function Field({ name, label, value, onChange, type = 'text', ...rest }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{label}</label>
+      <input type={type} name={name} value={value || ''} onChange={onChange}
+        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} {...rest} />
+    </div>
+  );
+}
+
 export default function ServerFormPage() {
   const { t } = useTranslation('servers');
   const { id } = useParams();
@@ -62,16 +74,6 @@ export default function ServerFormPage() {
     }
   };
 
-  const inputStyle = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
-
-  const Field = ({ name, label, type = 'text', ...rest }) => (
-    <div>
-      <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{label}</label>
-      <input type={type} name={name} value={form[name] || ''} onChange={handleChange}
-        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} {...rest} />
-    </div>
-  );
-
   return (
     <div className="max-w-2xl space-y-6">
       <div className="flex items-center gap-4">
@@ -83,7 +85,7 @@ export default function ServerFormPage() {
         {error && <div className="px-4 py-3 rounded-lg text-sm" style={{ background: '#451a03', color: '#f87171' }}>{error}</div>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field name="name" label={t('name')} required />
+          <Field name="name" label={t('name')} value={form.name} onChange={handleChange} required />
           <div>
             <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('provider')}</label>
             <select name="provider_id" value={form.provider_id} onChange={handleChange} required
@@ -106,18 +108,18 @@ export default function ServerFormPage() {
               <option value="cloud">{t('type_cloud')}</option>
             </select>
           </div>
-          <Field name="hostname" label={t('hostname')} />
+          <Field name="hostname" label={t('hostname')} value={form.hostname} onChange={handleChange} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field name="location" label={t('location')} />
-          <Field name="os" label={t('os')} />
+          <Field name="location" label={t('location')} value={form.location} onChange={handleChange} />
+          <Field name="os" label={t('os')} value={form.os} onChange={handleChange} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <Field name="cpu_cores" label={t('cpu_cores')} type="number" />
-          <Field name="ram_mb" label={t('ram_mb')} type="number" />
-          <Field name="storage_gb" label={t('storage_gb')} type="number" />
+          <Field name="cpu_cores" label={t('cpu_cores')} value={form.cpu_cores} onChange={handleChange} type="number" />
+          <Field name="ram_mb" label={t('ram_mb')} value={form.ram_mb} onChange={handleChange} type="number" />
+          <Field name="storage_gb" label={t('storage_gb')} value={form.storage_gb} onChange={handleChange} type="number" />
           <div>
             <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('storage_type')}</label>
             <select name="storage_type" value={form.storage_type || ''} onChange={handleChange}
@@ -143,11 +145,11 @@ export default function ServerFormPage() {
         <hr style={{ borderColor: 'var(--color-border)' }} />
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field name="ssh_user" label={t('ssh_user')} />
-          <Field name="ssh_port" label={t('ssh_port')} type="number" />
+          <Field name="ssh_user" label={t('ssh_user')} value={form.ssh_user} onChange={handleChange} />
+          <Field name="ssh_port" label={t('ssh_port')} value={form.ssh_port} onChange={handleChange} type="number" />
         </div>
-        <Field name="ssh_public_key" label={t('ssh_public_key')} />
-        <Field name="ssh_host_key" label={t('ssh_host_key')} />
+        <Field name="ssh_public_key" label={t('ssh_public_key')} value={form.ssh_public_key} onChange={handleChange} />
+        <Field name="ssh_host_key" label={t('ssh_host_key')} value={form.ssh_host_key} onChange={handleChange} />
 
         <div>
           <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('notes')}</label>
