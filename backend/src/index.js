@@ -13,6 +13,8 @@ import ipRoutes from './routes/ips.js';
 import serviceRoutes from './routes/services.js';
 import dashboardRoutes from './routes/dashboard.js';
 import exportRoutes from './routes/export.js';
+import cron from 'node-cron';
+import { checkAlerts } from './jobs/alertChecker.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -50,6 +52,14 @@ app.use((err, req, res, _next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'server.internal_error' });
 });
+
+// Alert checker cron — runs daily at 8am
+cron.schedule('0 8 * * *', () => {
+  try { checkAlerts(db); } catch (err) { console.error('Alert checker failed:', err); }
+});
+
+// Run alert check on startup
+try { checkAlerts(db); } catch { /* ignore on startup */ }
 
 app.listen(PORT, () => {
   console.log(`ServerStack running on port ${PORT}`);

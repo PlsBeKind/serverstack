@@ -10,6 +10,7 @@ import ProvidersPage from './pages/ProvidersPage.jsx';
 import ContractsPage from './pages/ContractsPage.jsx';
 import ContractFormPage from './pages/ContractFormPage.jsx';
 import CostAnalysisPage from './pages/CostAnalysisPage.jsx';
+import SettingsPage from './pages/SettingsPage.jsx';
 
 export default function App() {
   const auth = useAuth();
@@ -36,6 +37,7 @@ export default function App() {
         <Route path="/contracts/new" element={<ContractFormPage />} />
         <Route path="/contracts/:id/edit" element={<ContractFormPage />} />
         <Route path="/costs" element={<CostAnalysisPage />} />
+        <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
