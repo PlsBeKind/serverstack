@@ -15,7 +15,8 @@ export default function ContractFormPage() {
     server_id: '', contract_number: '', monthly_cost: '', regular_cost: '',
     billing_cycle: 'monthly', start_date: '', end_date: '',
     promo_price: false, promo_end_date: '', cancellation_period_days: '30',
-    next_cancellation_date: '', auto_renew: true, notes: '',
+    next_cancellation_date: '', auto_renew: true, contract_period: '',
+    is_cancelled: false, notes: '',
   });
   const [providerName, setProviderName] = useState('');
   const [error, setError] = useState('');
@@ -29,6 +30,7 @@ export default function ContractFormPage() {
           ...prev, ...c,
           promo_price: !!c.promo_price,
           auto_renew: !!c.auto_renew,
+          is_cancelled: !!c.is_cancelled,
           monthly_cost: c.monthly_cost || '',
           regular_cost: c.regular_cost || '',
           cancellation_period_days: c.cancellation_period_days || '30',
@@ -156,6 +158,24 @@ export default function ContractFormPage() {
             <input type="checkbox" name="auto_renew" checked={form.auto_renew} onChange={handleChange} className="w-4 h-4 rounded" />
             {t('auto_renew')}
           </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" name="is_cancelled" checked={form.is_cancelled} onChange={handleChange} className="w-4 h-4 rounded" />
+            {t('is_cancelled')}
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contract_period')}</label>
+          <select name="contract_period" value={form.contract_period || ''} onChange={handleChange}
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle}>
+            <option value="">—</option>
+            <option value="1 month">1 Month</option>
+            <option value="3 months">3 Months</option>
+            <option value="6 months">6 Months</option>
+            <option value="12 months">12 Months</option>
+            <option value="24 months">24 Months</option>
+            <option value="36 months">36 Months</option>
+          </select>
         </div>
 
         {form.promo_price && (

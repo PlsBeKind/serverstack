@@ -65,6 +65,8 @@ export function initDatabase(dbPath) {
       auto_renew INTEGER DEFAULT 1,
       promo_price INTEGER DEFAULT 0,
       promo_end_date TEXT,
+      contract_period TEXT,
+      is_cancelled INTEGER DEFAULT 0,
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE

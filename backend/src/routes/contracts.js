@@ -48,7 +48,7 @@ export default function contractRoutes(db) {
       server_id, contract_number, monthly_cost, regular_cost,
       billing_cycle, start_date, end_date,
       cancellation_period_days, next_cancellation_date,
-      auto_renew, promo_price, promo_end_date, notes
+      auto_renew, promo_price, promo_end_date, contract_period, is_cancelled, notes
     } = req.body;
 
     if (!server_id) {
@@ -59,15 +59,16 @@ export default function contractRoutes(db) {
     if (!server) return res.status(400).json({ error: 'contracts.invalid_server' });
 
     const result = db.prepare(`
-      INSERT INTO contracts (server_id, contract_number, monthly_cost, regular_cost, billing_cycle, start_date, end_date, cancellation_period_days, next_cancellation_date, auto_renew, promo_price, promo_end_date, notes)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO contracts (server_id, contract_number, monthly_cost, regular_cost, billing_cycle, start_date, end_date, cancellation_period_days, next_cancellation_date, auto_renew, promo_price, promo_end_date, contract_period, is_cancelled, notes)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       server_id, contract_number || null,
       monthly_cost || 0, regular_cost || null,
       billing_cycle || 'monthly', start_date || null, end_date || null,
       cancellation_period_days || 30, next_cancellation_date || null,
       auto_renew !== undefined ? (auto_renew ? 1 : 0) : 1,
-      promo_price ? 1 : 0, promo_end_date || null, notes || null
+      promo_price ? 1 : 0, promo_end_date || null,
+      contract_period || null, is_cancelled ? 1 : 0, notes || null
     );
 
     const contract = db.prepare('SELECT * FROM contracts WHERE id = ?').get(result.lastInsertRowid);
@@ -82,7 +83,7 @@ export default function contractRoutes(db) {
       server_id, contract_number, monthly_cost, regular_cost,
       billing_cycle, start_date, end_date,
       cancellation_period_days, next_cancellation_date,
-      auto_renew, promo_price, promo_end_date, notes
+      auto_renew, promo_price, promo_end_date, contract_period, is_cancelled, notes
     } = req.body;
 
     db.prepare(`
@@ -90,7 +91,8 @@ export default function contractRoutes(db) {
         server_id = ?, contract_number = ?, monthly_cost = ?, regular_cost = ?,
         billing_cycle = ?, start_date = ?, end_date = ?,
         cancellation_period_days = ?, next_cancellation_date = ?,
-        auto_renew = ?, promo_price = ?, promo_end_date = ?, notes = ?
+        auto_renew = ?, promo_price = ?, promo_end_date = ?,
+        contract_period = ?, is_cancelled = ?, notes = ?
       WHERE id = ?
     `).run(
       server_id ?? existing.server_id, contract_number ?? existing.contract_number,
@@ -100,7 +102,10 @@ export default function contractRoutes(db) {
       next_cancellation_date ?? existing.next_cancellation_date,
       auto_renew !== undefined ? (auto_renew ? 1 : 0) : existing.auto_renew,
       promo_price !== undefined ? (promo_price ? 1 : 0) : existing.promo_price,
-      promo_end_date ?? existing.promo_end_date, notes ?? existing.notes,
+      promo_end_date ?? existing.promo_end_date,
+      contract_period ?? existing.contract_period,
+      is_cancelled !== undefined ? (is_cancelled ? 1 : 0) : existing.is_cancelled,
+      notes ?? existing.notes,
       req.params.id
     );
 
