@@ -3,6 +3,10 @@ import { useAuth } from './hooks/useAuth.js';
 import Layout from './components/Layout.jsx';
 import LoginPage from './pages/LoginPage.jsx';
 import DashboardPage from './pages/DashboardPage.jsx';
+import ServersPage from './pages/ServersPage.jsx';
+import ServerFormPage from './pages/ServerFormPage.jsx';
+import ServerDetailPage from './pages/ServerDetailPage.jsx';
+import ProvidersPage from './pages/ProvidersPage.jsx';
 
 export default function App() {
   const auth = useAuth();
@@ -20,6 +24,11 @@ export default function App() {
     <Layout auth={auth}>
       <Routes>
         <Route path="/" element={<DashboardPage />} />
+        <Route path="/servers" element={<ServersPage />} />
+        <Route path="/servers/new" element={<ServerFormPage />} />
+        <Route path="/servers/:id" element={<ServerDetailPage />} />
+        <Route path="/servers/:id/edit" element={<ServerFormPage />} />
+        <Route path="/providers" element={<ProvidersPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Layout>
