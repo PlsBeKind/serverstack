@@ -56,7 +56,7 @@ export default function ServerFormPage() {
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
 
   const addIpRow = () => {
-    setIps([...ips, { address: '', version: 'ipv4', type: 'primary', rdns: '' }]);
+    setIps([...ips, { address: '', type: 'primary', rdns: '' }]);
   };
 
   const updateIpRow = (index, field, value) => {
@@ -96,10 +96,11 @@ export default function ServerFormPage() {
         serverId = created.id;
       }
 
-      // Save new IPs
+      // Save new IPs with auto-detected version
       const validIps = ips.filter(ip => ip.address.trim());
       for (const ip of validIps) {
-        await api.createIp({ server_id: serverId, ...ip });
+        const version = ip.address.includes(':') ? 'ipv6' : 'ipv4';
+        await api.createIp({ server_id: serverId, ...ip, version });
       }
 
       navigate(`/servers/${serverId}`);
@@ -221,19 +222,19 @@ export default function ServerFormPage() {
 
           {/* New IP rows */}
           {ips.map((ip, i) => (
-            <div key={i} className="grid grid-cols-[1fr_auto_auto_1fr_auto] gap-2 mb-2 items-end">
+            <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 mb-2 items-end">
               <div>
                 {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_address')}</label>}
-                <input value={ip.address} onChange={(e) => updateIpRow(i, 'address', e.target.value)}
-                  placeholder="10.0.0.1 or 10.0.0.0/24" className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
-              </div>
-              <div>
-                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_version')}</label>}
-                <select value={ip.version} onChange={(e) => updateIpRow(i, 'version', e.target.value)}
-                  className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
-                  <option value="ipv4">IPv4</option>
-                  <option value="ipv6">IPv6</option>
-                </select>
+                <div className="relative">
+                  <input value={ip.address} onChange={(e) => updateIpRow(i, 'address', e.target.value)}
+                    placeholder="10.0.0.1, 10.0.0.0/24, or 2a01::" className="w-full px-3 py-2 pr-14 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
+                  {ip.address && (
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1.5 py-0.5 rounded"
+                      style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-text-muted)' }}>
+                      {ip.address.includes(':') ? 'IPv6' : 'IPv4'}
+                    </span>
+                  )}
+                </div>
               </div>
               <div>
                 {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_type')}</label>}
