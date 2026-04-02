@@ -1,0 +1,137 @@
+import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
+import { Server, Building2, DollarSign, HardDrive, Cpu, Network, Bell, TrendingUp } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { api } from '../api/client.js';
+import CostBadge from '../components/CostBadge.jsx';
+
+const COLORS = ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'];
+
+function StatCard({ icon: Icon, label, value, sub, color = 'var(--color-primary)' }) {
+  return (
+    <div className="rounded-xl p-5 hover-lift" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-sm font-medium mb-1" style={{ color: 'var(--color-text-muted)' }}>{label}</p>
+          <p className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{value}</p>
+          {sub && <p className="text-xs mt-1" style={{ color: 'var(--color-text-muted)' }}>{sub}</p>}
+        </div>
+        <div className="p-2.5 rounded-lg" style={{ background: `${color}15`, color }}><Icon size={20} /></div>
+      </div>
+    </div>
+  );
+}
+
+export default function DashboardPage() {
+  const { t } = useTranslation('dashboard');
+  const [summary, setSummary] = useState(null);
+  const [costs, setCosts] = useState(null);
+  const [alerts, setAlerts] = useState([]);
+  const [resources, setResources] = useState(null);
+
+  useEffect(() => {
+    Promise.all([api.getSummary(), api.getCosts(), api.getAlerts(), api.getResources()])
+      .then(([s, c, a, r]) => { setSummary(s); setCosts(c); setAlerts(a); setResources(r); });
+  }, []);
+
+  if (!summary) return <div className="flex items-center justify-center h-64 opacity-50">{t('common:actions.loading')}</div>;
+
+  const markAllRead = async () => {
+    await api.markAllAlertsRead();
+    setAlerts(alerts.map(a => ({ ...a, sent: 1 })));
+  };
+
+  return (
+    <div className="space-y-6">
+      <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{t('title')}</h1>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <StatCard icon={Server} label={t('total_servers')} value={summary.servers.total} sub={`${summary.servers.active} ${t('active_servers').toLowerCase()}`} />
+        <StatCard icon={Building2} label={t('providers')} value={summary.providers} color="#06b6d4" />
+        <StatCard icon={DollarSign} label={t('total_monthly')} value={<CostBadge amount={costs?.total_monthly} />} color="#f59e0b" />
+        <StatCard icon={TrendingUp} label={t('promo_savings')} value={<CostBadge amount={costs?.promo_savings} />} color="#8b5cf6" />
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-1 rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>{t('cost_by_provider')}</h3>
+          {costs?.by_provider?.length > 0 ? (
+            <ResponsiveContainer width="100%" height={200}>
+              <PieChart>
+                <Pie data={costs.by_provider} dataKey="total" nameKey="name" cx="50%" cy="50%" outerRadius={80} innerRadius={40}>
+                  {costs.by_provider.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                </Pie>
+                <Tooltip contentStyle={{ background: '#1e293b', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px' }} />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <p className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
+          )}
+          <div className="flex flex-wrap gap-2 mt-2">
+            {costs?.by_provider?.map((p, i) => (
+              <span key={p.name} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                <span className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />{p.name}
+              </span>
+            ))}
+          </div>
+        </div>
+
+        <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>{t('resources')}</h3>
+          <div className="space-y-4">
+            <div className="flex items-center gap-3">
+              <Cpu size={18} style={{ color: '#06b6d4' }} />
+              <div className="flex-1">
+                <p className="text-sm">{t('total_cores')}</p>
+                <p className="text-lg font-bold font-mono">{resources?.total_cores || 0}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <HardDrive size={18} style={{ color: '#8b5cf6' }} />
+              <div className="flex-1">
+                <p className="text-sm">{t('total_ram')}</p>
+                <p className="text-lg font-bold font-mono">{resources?.total_ram_mb ? `${(resources.total_ram_mb / 1024).toFixed(1)} GB` : '0'}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <HardDrive size={18} style={{ color: '#f59e0b' }} />
+              <div className="flex-1">
+                <p className="text-sm">{t('total_storage')}</p>
+                <p className="text-lg font-bold font-mono">{resources?.total_storage_gb || 0} GB</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <Network size={18} style={{ color: '#10b981' }} />
+              <div className="flex-1">
+                <p className="text-sm">{t('total_ips')}</p>
+                <p className="text-lg font-bold font-mono">{resources?.total_ips || 0}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--color-text-muted)' }}>{t('recent_alerts')}</h3>
+            {alerts.some(a => !a.sent) && (
+              <button onClick={markAllRead} className="text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>{t('mark_all_read')}</button>
+            )}
+          </div>
+          {alerts.length === 0 ? (
+            <p className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('no_alerts')}</p>
+          ) : (
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {alerts.slice(0, 10).map(alert => (
+                <div key={alert.id} className={`flex items-start gap-2 p-2.5 rounded-lg text-xs ${alert.sent ? 'opacity-50' : ''}`}
+                  style={{ background: 'var(--color-surface)' }}>
+                  <Bell size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--color-warning)' }} />
+                  <span className="line-clamp-2">{alert.message}</span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}

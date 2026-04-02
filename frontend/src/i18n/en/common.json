@@ -1,0 +1,70 @@
+{
+  "app_name": "ServerStack",
+  "nav": {
+    "dashboard": "Dashboard",
+    "servers": "Servers",
+    "providers": "Providers",
+    "contracts": "Contracts",
+    "costs": "Cost Analysis",
+    "alerts": "Alerts",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "auth": {
+    "login": "Sign In",
+    "register": "Create Account",
+    "username": "Username",
+    "password": "Password",
+    "current_password": "Current Password",
+    "new_password": "New Password",
+    "change_password": "Change Password",
+    "login_title": "Welcome Back",
+    "login_subtitle": "Sign in to your server inventory",
+    "register_title": "Get Started",
+    "register_subtitle": "Create your admin account",
+    "no_account": "No account yet?",
+    "has_account": "Already have an account?",
+    "missing_fields": "Username and password are required",
+    "password_too_short": "Password must be at least 8 characters",
+    "registration_closed": "Registration is closed — an admin account already exists",
+    "invalid_credentials": "Invalid username or password",
+    "password_changed": "Password changed successfully"
+  },
+  "actions": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "delete": "Delete",
+    "edit": "Edit",
+    "create": "Create",
+    "add": "Add",
+    "back": "Back",
+    "confirm": "Confirm",
+    "search": "Search...",
+    "loading": "Loading...",
+    "no_data": "No data found",
+    "export": "Export",
+    "import": "Import"
+  },
+  "status": {
+    "active": "Active",
+    "inactive": "Inactive",
+    "suspended": "Suspended",
+    "running": "Running",
+    "stopped": "Stopped",
+    "unknown": "Unknown"
+  },
+  "language": {
+    "en": "English",
+    "de": "Deutsch"
+  },
+  "settings": {
+    "title": "Settings",
+    "language": "Language",
+    "change_password": "Change Password",
+    "export_import": "Export / Import",
+    "export_desc": "Download all data as JSON",
+    "import_desc": "Import data from JSON file",
+    "import_success": "Import completed successfully",
+    "import_error": "Import failed"
+  }
+}

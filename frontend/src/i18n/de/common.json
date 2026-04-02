@@ -1,0 +1,70 @@
+{
+  "app_name": "ServerStack",
+  "nav": {
+    "dashboard": "Dashboard",
+    "servers": "Server",
+    "providers": "Anbieter",
+    "contracts": "Vertr\u00e4ge",
+    "costs": "Kostenanalyse",
+    "alerts": "Benachrichtigungen",
+    "settings": "Einstellungen",
+    "logout": "Abmelden"
+  },
+  "auth": {
+    "login": "Anmelden",
+    "register": "Konto erstellen",
+    "username": "Benutzername",
+    "password": "Passwort",
+    "current_password": "Aktuelles Passwort",
+    "new_password": "Neues Passwort",
+    "change_password": "Passwort \u00e4ndern",
+    "login_title": "Willkommen zur\u00fcck",
+    "login_subtitle": "Melde dich bei deinem Server-Inventar an",
+    "register_title": "Loslegen",
+    "register_subtitle": "Erstelle dein Admin-Konto",
+    "no_account": "Noch kein Konto?",
+    "has_account": "Bereits ein Konto?",
+    "missing_fields": "Benutzername und Passwort sind erforderlich",
+    "password_too_short": "Passwort muss mindestens 8 Zeichen lang sein",
+    "registration_closed": "Registrierung geschlossen \u2014 ein Admin-Konto existiert bereits",
+    "invalid_credentials": "Ung\u00fcltiger Benutzername oder Passwort",
+    "password_changed": "Passwort erfolgreich ge\u00e4ndert"
+  },
+  "actions": {
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "delete": "L\u00f6schen",
+    "edit": "Bearbeiten",
+    "create": "Erstellen",
+    "add": "Hinzuf\u00fcgen",
+    "back": "Zur\u00fcck",
+    "confirm": "Best\u00e4tigen",
+    "search": "Suchen...",
+    "loading": "Laden...",
+    "no_data": "Keine Daten gefunden",
+    "export": "Exportieren",
+    "import": "Importieren"
+  },
+  "status": {
+    "active": "Aktiv",
+    "inactive": "Inaktiv",
+    "suspended": "Gesperrt",
+    "running": "L\u00e4uft",
+    "stopped": "Gestoppt",
+    "unknown": "Unbekannt"
+  },
+  "language": {
+    "en": "English",
+    "de": "Deutsch"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "language": "Sprache",
+    "change_password": "Passwort \u00e4ndern",
+    "export_import": "Export / Import",
+    "export_desc": "Alle Daten als JSON herunterladen",
+    "import_desc": "Daten aus JSON-Datei importieren",
+    "import_success": "Import erfolgreich abgeschlossen",
+    "import_error": "Import fehlgeschlagen"
+  }
+}

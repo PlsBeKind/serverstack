@@ -1,0 +1,21 @@
+{
+  "title": "Dashboard",
+  "total_servers": "Server gesamt",
+  "active_servers": "Aktive Server",
+  "providers": "Anbieter",
+  "total_monthly": "Monatliche Kosten",
+  "total_yearly": "J\u00e4hrliche Kosten",
+  "promo_savings": "Promo-Ersparnis",
+  "cost_by_provider": "Kosten nach Anbieter",
+  "recent_alerts": "Aktuelle Benachrichtigungen",
+  "resources": "Ressourcen",
+  "total_cores": "Gesamt-Kerne",
+  "total_ram": "Gesamt-RAM",
+  "total_storage": "Gesamt-Speicher",
+  "total_ips": "Gesamt-IPs",
+  "servers_by_os": "Server nach Betriebssystem",
+  "servers_by_location": "Server nach Standort",
+  "no_alerts": "Keine Benachrichtigungen",
+  "pending_alerts": "Offene Benachrichtigungen",
+  "mark_all_read": "Alle als gelesen markieren"
+}
