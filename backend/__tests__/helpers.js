@@ -2,6 +2,11 @@ import express from 'express';
 import { initDatabase } from '../src/database.js';
 import { authMiddleware } from '../src/middleware/auth.js';
 import authRoutes from '../src/routes/auth.js';
+import providerRoutes from '../src/routes/providers.js';
+import serverRoutes from '../src/routes/servers.js';
+import contractRoutes from '../src/routes/contracts.js';
+import ipRoutes from '../src/routes/ips.js';
+import serviceRoutes from '../src/routes/services.js';
 
 /**
  * Create a fresh app + in-memory DB for testing.
@@ -15,6 +20,11 @@ export function createTestApp() {
   app.use(express.json({ limit: '10mb' }));
 
   app.use('/api/v1/auth', authRoutes(db));
+  app.use('/api/v1/providers', authMiddleware, providerRoutes(db));
+  app.use('/api/v1/servers', authMiddleware, serverRoutes(db));
+  app.use('/api/v1/contracts', authMiddleware, contractRoutes(db));
+  app.use('/api/v1/ips', authMiddleware, ipRoutes(db));
+  app.use('/api/v1/services', authMiddleware, serviceRoutes(db));
 
   return { app, db };
 }
