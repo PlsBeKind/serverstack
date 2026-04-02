@@ -15,6 +15,7 @@
   "os": "Betriebssystem",
   "cpu_cores": "CPU-Kerne",
   "ram_mb": "RAM (MB)",
+  "ram_gb": "RAM (GB)",
   "storage_gb": "Speicher (GB)",
   "storage_type": "Speichertyp",
   "status": "Status",

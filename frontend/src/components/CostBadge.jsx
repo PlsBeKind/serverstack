@@ -1,7 +1,15 @@
-export default function CostBadge({ amount, currency = 'EUR', promo = false }) {
+function getDefaultCurrency() {
+  if (typeof window !== 'undefined') {
+    return localStorage.getItem('currency') || 'EUR';
+  }
+  return 'EUR';
+}
+
+export default function CostBadge({ amount, currency, promo = false }) {
+  const cur = currency || getDefaultCurrency();
   const formatted = new Intl.NumberFormat(undefined, {
     style: 'currency',
-    currency,
+    currency: cur,
     minimumFractionDigits: 2,
   }).format(amount || 0);
 

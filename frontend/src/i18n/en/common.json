@@ -61,6 +61,7 @@
     "title": "Settings",
     "language": "Language",
     "change_password": "Change Password",
+    "currency": "Default Currency",
     "export_import": "Export / Import",
     "export_desc": "Download all data as JSON",
     "import_desc": "Import data from JSON file",

@@ -29,6 +29,7 @@ export default function ServerFormPage() {
     notes: '', ssh_user: '', ssh_port: '22', ssh_public_key: '',
     ssh_host_key: '',
   });
+  const [ramUnit, setRamUnit] = useState('GB');
   const [ips, setIps] = useState([]);
   const [existingIps, setExistingIps] = useState([]);
   const [error, setError] = useState('');
@@ -37,11 +38,17 @@ export default function ServerFormPage() {
   useEffect(() => {
     api.getProviders().then(setProviders);
     if (isEdit) {
-      api.getServer(id).then(s => setForm(prev => ({
-        ...prev, ...s,
-        cpu_cores: s.cpu_cores || '', ram_mb: s.ram_mb || '',
-        storage_gb: s.storage_gb || '', ssh_port: s.ssh_port || '22',
-      })));
+      api.getServer(id).then(s => {
+        const ramVal = s.ram_mb || '';
+        const isCleanGb = ramVal && ramVal % 1024 === 0;
+        if (isCleanGb) setRamUnit('GB');
+        setForm(prev => ({
+          ...prev, ...s,
+          cpu_cores: s.cpu_cores || '',
+          ram_mb: isCleanGb ? ramVal / 1024 : ramVal,
+          storage_gb: s.storage_gb || '', ssh_port: s.ssh_port || '22',
+        }));
+      });
       api.getServerIps(id).then(setExistingIps);
     }
   }, [id, isEdit]);
@@ -74,7 +81,7 @@ export default function ServerFormPage() {
       ...form,
       provider_id: Number(form.provider_id),
       cpu_cores: form.cpu_cores ? Number(form.cpu_cores) : null,
-      ram_mb: form.ram_mb ? Number(form.ram_mb) : null,
+      ram_mb: form.ram_mb ? (ramUnit === 'GB' ? Number(form.ram_mb) * 1024 : Number(form.ram_mb)) : null,
       storage_gb: form.storage_gb ? Number(form.storage_gb) : null,
       ssh_port: form.ssh_port ? Number(form.ssh_port) : 22,
     };
@@ -147,7 +154,20 @@ export default function ServerFormPage() {
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
           <Field name="cpu_cores" label={t('cpu_cores')} value={form.cpu_cores} onChange={handleChange} type="number" />
-          <Field name="ram_mb" label={t('ram_mb')} value={form.ram_mb} onChange={handleChange} type="number" />
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+                {ramUnit === 'GB' ? t('ram_gb') : t('ram_mb')}
+              </label>
+              <button type="button" onClick={() => setRamUnit(ramUnit === 'GB' ? 'MB' : 'GB')}
+                className="text-[10px] font-mono px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors"
+                style={{ color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}>
+                {ramUnit === 'GB' ? 'MB' : 'GB'}
+              </button>
+            </div>
+            <input name="ram_mb" type="number" value={form.ram_mb || ''} onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} />
+          </div>
           <Field name="storage_gb" label={t('storage_gb')} value={form.storage_gb} onChange={handleChange} type="number" />
           <div>
             <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('storage_type')}</label>
