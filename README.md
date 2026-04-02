@@ -1,8 +1,7 @@
 # ServerStack
 
-> **Development Branch** — This is the development branch with unreleased features. For stable releases, see [main](../../tree/main).
-
 [![CI](https://github.com/mmaxx45/serverstack/actions/workflows/ci.yml/badge.svg)](https://github.com/mmaxx45/serverstack/actions/workflows/ci.yml)
+[![Docker](https://github.com/mmaxx45/serverstack/actions/workflows/docker-build.yml/badge.svg)](https://github.com/mmaxx45/serverstack/actions/workflows/docker-build.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 Self-hosted, multi-provider server inventory and cost tracker. Keep tabs on your servers, contracts, costs, and credentials in one place.
@@ -20,6 +19,33 @@ Self-hosted, multi-provider server inventory and cost tracker. Keep tabs on your
 - Single Docker container deployment with SQLite
 
 ## Quick Start (Docker)
+
+### Using the pre-built image (recommended)
+
+```bash
+mkdir serverstack && cd serverstack
+
+# Create docker-compose.yml
+cat > docker-compose.yml <<EOF
+services:
+  serverstack:
+    image: ghcr.io/mmaxx45/serverstack:latest
+    container_name: serverstack
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - JWT_SECRET=change-me-to-a-random-secret
+      - ENCRYPTION_KEY=change-me-32-byte-key-here!!
+    restart: unless-stopped
+EOF
+
+# Edit the environment variables above, then start
+docker compose up -d
+```
+
+### Building from source
 
 ```bash
 git clone https://github.com/mmaxx45/serverstack.git
