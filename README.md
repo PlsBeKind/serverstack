@@ -20,12 +20,39 @@ Self-hosted, multi-provider server inventory and cost tracker. Keep tabs on your
 
 ## Quick Start (Docker)
 
+### Using the pre-built image (recommended)
+
+```bash
+mkdir serverstack && cd serverstack
+
+# Create docker-compose.yml
+cat > docker-compose.yml <<EOF
+services:
+  serverstack:
+    image: ghcr.io/mmaxx45/serverstack:latest
+    container_name: serverstack
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - JWT_SECRET=change-me-to-a-random-secret
+      - ENCRYPTION_KEY=change-me-32-byte-key-here!!
+    restart: unless-stopped
+EOF
+
+# Edit the environment variables above, then start
+docker compose up -d
+```
+
+### Building from source
+
 ```bash
 git clone https://github.com/mmaxx45/serverstack.git
 cd serverstack
 cp .env.example .env
 # Edit .env and set JWT_SECRET and ENCRYPTION_KEY
-docker compose up -d
+docker compose up -d --build
 ```
 
 Open [http://localhost:3000](http://localhost:3000) and create your admin account.
