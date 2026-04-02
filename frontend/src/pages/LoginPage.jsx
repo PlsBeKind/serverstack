@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Server, Eye, EyeOff } from 'lucide-react';
 import { api } from '../api/client.js';
@@ -6,11 +6,19 @@ import { api } from '../api/client.js';
 export default function LoginPage({ auth }) {
   const { t } = useTranslation();
   const [isRegister, setIsRegister] = useState(false);
+  const [registrationOpen, setRegistrationOpen] = useState(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    api.getAuthStatus().then(data => {
+      setRegistrationOpen(data.registration_open);
+      if (data.registration_open) setIsRegister(true);
+    });
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -82,13 +90,25 @@ export default function LoginPage({ auth }) {
           </button>
         </form>
 
-        <p className="text-center mt-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
-          {isRegister ? t('auth.has_account') : t('auth.no_account')}{' '}
-          <button onClick={() => { setIsRegister(!isRegister); setError(''); }}
-            className="font-medium hover:underline" style={{ color: 'var(--color-primary)' }}>
-            {isRegister ? t('auth.login') : t('auth.register')}
-          </button>
-        </p>
+        {registrationOpen && !isRegister && (
+          <p className="text-center mt-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {t('auth.no_account')}{' '}
+            <button onClick={() => setIsRegister(true)}
+              className="font-medium hover:underline" style={{ color: 'var(--color-primary)' }}>
+              {t('auth.register')}
+            </button>
+          </p>
+        )}
+
+        {isRegister && registrationOpen && (
+          <p className="text-center mt-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>
+            {t('auth.has_account')}{' '}
+            <button onClick={() => setIsRegister(false)}
+              className="font-medium hover:underline" style={{ color: 'var(--color-primary)' }}>
+              {t('auth.login')}
+            </button>
+          </p>
+        )}
       </div>
     </div>
   );

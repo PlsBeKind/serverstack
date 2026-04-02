@@ -9,6 +9,20 @@ describe('Auth Routes', () => {
     ({ app, db } = createTestApp());
   });
 
+  describe('GET /api/v1/auth/status', () => {
+    it('should return registration_open true when no users', async () => {
+      const res = await request(app).get('/api/v1/auth/status');
+      expect(res.status).toBe(200);
+      expect(res.body.registration_open).toBe(true);
+    });
+
+    it('should return registration_open false after user exists', async () => {
+      await request(app).post('/api/v1/auth/register').send({ username: 'admin', password: 'password123' });
+      const res = await request(app).get('/api/v1/auth/status');
+      expect(res.body.registration_open).toBe(false);
+    });
+  });
+
   describe('POST /api/v1/auth/register', () => {
     it('should register first user', async () => {
       const res = await request(app)

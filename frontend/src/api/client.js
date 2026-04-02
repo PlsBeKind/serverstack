@@ -27,6 +27,7 @@ http.interceptors.response.use(
 
 export const api = {
   // Auth
+  getAuthStatus: () => http.get('/auth/status').then(r => r.data),
   login: (data) => http.post('/auth/login', data).then(r => r.data),
   register: (data) => http.post('/auth/register', data).then(r => r.data),
   changePassword: (data) => http.post('/auth/change-password', data).then(r => r.data),

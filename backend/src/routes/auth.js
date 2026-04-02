@@ -9,6 +9,11 @@ import { authMiddleware } from '../middleware/auth.js';
 export default function authRoutes(db) {
   const router = Router();
 
+  router.get('/status', (req, res) => {
+    const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
+    res.json({ registration_open: userCount === 0 });
+  });
+
   router.post('/register', (req, res) => {
     const { username, password } = req.body;
     if (!username || !password) {
