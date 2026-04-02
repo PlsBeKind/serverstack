@@ -1,8 +1,7 @@
 # ServerStack
 
-> **Development Branch** — This is the development branch with unreleased features. For stable releases, see [main](../../tree/main).
-
 [![CI](https://github.com/mmaxx45/serverstack/actions/workflows/ci.yml/badge.svg)](https://github.com/mmaxx45/serverstack/actions/workflows/ci.yml)
+[![Docker](https://github.com/mmaxx45/serverstack/actions/workflows/docker-build.yml/badge.svg)](https://github.com/mmaxx45/serverstack/actions/workflows/docker-build.yml)
 [![License: AGPL-3.0](https://img.shields.io/badge/License-AGPL--3.0-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
 Self-hosted, multi-provider server inventory and cost tracker. Keep tabs on your servers, contracts, costs, and credentials in one place.
