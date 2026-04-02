@@ -23,19 +23,21 @@ describe('Export/Import Routes', () => {
     expect(res.body.version).toBe('1.0.0');
   });
 
-  it('should not include encrypted passwords in export', async () => {
+  it('should export credentials without passwords', async () => {
     const providerId = seedProvider(db);
     const serverId = seedServer(db, providerId);
-    db.prepare("UPDATE servers SET login_password_enc = 'encrypted' WHERE id = ?").run(serverId);
+    db.prepare("INSERT INTO server_credentials (server_id, label, username, password_enc) VALUES (?, ?, ?, ?)").run(serverId, 'root', 'root', 'encrypted');
 
     const res = await request(app).get('/api/v1/export').set(auth());
-    expect(res.body.servers[0].login_password_enc).toBeUndefined();
+    expect(res.body.server_credentials).toHaveLength(1);
+    expect(res.body.server_credentials[0].password_enc).toBeUndefined();
+    expect(res.body.server_credentials[0].label).toBe('root');
   });
 
   it('should import data', async () => {
     const exportData = {
       providers: [{ id: 1, name: 'ImportedProvider', website: null, support_email: null, support_phone: null, notes: null }],
-      servers: [{ id: 1, provider_id: 1, name: 'Imported VPS', type: 'vps', hostname: 'imported.example.com', location: null, os: null, cpu_cores: null, ram_mb: 8192, storage_gb: 50, storage_type: null, status: 'active', notes: null, ssh_user: null, ssh_port: 22, ssh_public_key: null, ssh_host_key: null, login_user: null }],
+      servers: [{ id: 1, provider_id: 1, name: 'Imported VPS', type: 'vps', hostname: 'imported.example.com', location: null, os: null, cpu_cores: null, ram_mb: 8192, storage_gb: 50, storage_type: null, status: 'active', notes: null, ssh_user: null, ssh_port: 22, ssh_public_key: null, ssh_host_key: null }],
       contracts: [],
       ip_addresses: [],
       services: [],

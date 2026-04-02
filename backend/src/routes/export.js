@@ -13,15 +13,15 @@ export default function exportRoutes(db) {
       contracts: db.prepare('SELECT * FROM contracts').all(),
       ip_addresses: db.prepare('SELECT * FROM ip_addresses').all(),
       services: db.prepare('SELECT * FROM services').all(),
+      server_credentials: db.prepare('SELECT id, server_id, label, username, notes, created_at FROM server_credentials').all(),
       exported_at: new Date().toISOString(),
       version: '1.0.0',
     };
-    data.servers = data.servers.map(({ login_password_enc, ...rest }) => rest);
     res.json(data);
   });
 
   router.post('/import', (req, res) => {
-    const { providers, servers, contracts, ip_addresses, services } = req.body;
+    const { providers, servers, contracts, ip_addresses, services, server_credentials } = req.body;
 
     if (!providers || !servers) {
       return res.status(400).json({ error: 'export.invalid_format' });
@@ -30,7 +30,7 @@ export default function exportRoutes(db) {
     const importData = db.transaction(() => {
       const providerMap = {};
       const serverMap = {};
-      let importedCount = { providers: 0, servers: 0, contracts: 0, ip_addresses: 0, services: 0 };
+      let importedCount = { providers: 0, servers: 0, contracts: 0, ip_addresses: 0, services: 0, server_credentials: 0 };
 
       for (const p of providers) {
         const existing = db.prepare('SELECT id FROM providers WHERE name = ?').get(p.name);
@@ -48,12 +48,12 @@ export default function exportRoutes(db) {
         const mappedProviderId = providerMap[s.provider_id];
         if (!mappedProviderId) continue;
         const result = db.prepare(`
-          INSERT INTO servers (provider_id, name, type, hostname, location, os, cpu_cores, ram_mb, storage_gb, storage_type, status, notes, ssh_user, ssh_port, ssh_public_key, ssh_host_key, login_user)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          INSERT INTO servers (provider_id, name, type, hostname, location, os, cpu_cores, ram_mb, storage_gb, storage_type, status, notes, ssh_user, ssh_port, ssh_public_key, ssh_host_key)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `).run(
           mappedProviderId, s.name, s.type, s.hostname, s.location, s.os,
           s.cpu_cores, s.ram_mb, s.storage_gb, s.storage_type, s.status, s.notes,
-          s.ssh_user, s.ssh_port, s.ssh_public_key, s.ssh_host_key, s.login_user
+          s.ssh_user, s.ssh_port, s.ssh_public_key, s.ssh_host_key
         );
         serverMap[s.id] = result.lastInsertRowid;
         importedCount.servers++;
@@ -93,6 +93,16 @@ export default function exportRoutes(db) {
           db.prepare('INSERT INTO services (server_id, name, category, port, url, docker, status, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
             .run(mappedServerId, svc.name, svc.category, svc.port, svc.url, svc.docker, svc.status, svc.notes);
           importedCount.services++;
+        }
+      }
+
+      if (server_credentials) {
+        for (const cred of server_credentials) {
+          const mappedServerId = serverMap[cred.server_id];
+          if (!mappedServerId) continue;
+          db.prepare('INSERT INTO server_credentials (server_id, label, username, notes) VALUES (?, ?, ?, ?)')
+            .run(mappedServerId, cred.label, cred.username, cred.notes);
+          importedCount.server_credentials++;
         }
       }
 

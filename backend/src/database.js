@@ -45,8 +45,6 @@ export function initDatabase(dbPath) {
       ssh_port INTEGER DEFAULT 22,
       ssh_public_key TEXT,
       ssh_host_key TEXT,
-      login_user TEXT,
-      login_password_enc TEXT,
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
@@ -93,6 +91,17 @@ export function initDatabase(dbPath) {
       url TEXT,
       docker INTEGER DEFAULT 0,
       status TEXT DEFAULT 'running',
+      notes TEXT,
+      created_at TEXT DEFAULT (datetime('now')),
+      FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE
+    );
+
+    CREATE TABLE IF NOT EXISTS server_credentials (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      server_id INTEGER NOT NULL,
+      label TEXT NOT NULL,
+      username TEXT,
+      password_enc TEXT,
       notes TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       FOREIGN KEY (server_id) REFERENCES servers(id) ON DELETE CASCADE

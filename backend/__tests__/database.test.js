@@ -13,6 +13,7 @@ describe('Database', () => {
     expect(tables).toContain('providers');
     expect(tables).toContain('servers');
     expect(tables).toContain('contracts');
+    expect(tables).toContain('server_credentials');
     expect(tables).toContain('ip_addresses');
     expect(tables).toContain('services');
     expect(tables).toContain('alerts');
@@ -32,8 +33,8 @@ describe('Database', () => {
     expect(cols).toContain('ssh_port');
     expect(cols).toContain('ssh_public_key');
     expect(cols).toContain('ssh_host_key');
-    expect(cols).toContain('login_user');
-    expect(cols).toContain('login_password_enc');
+    expect(cols).not.toContain('login_user');
+    expect(cols).not.toContain('login_password_enc');
   });
 
   it('should have correct contracts columns (no provider_id)', () => {

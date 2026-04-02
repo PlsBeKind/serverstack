@@ -15,7 +15,7 @@ export default function ServerFormPage() {
     provider_id: '', name: '', type: '', hostname: '', location: '', os: '',
     cpu_cores: '', ram_mb: '', storage_gb: '', storage_type: '', status: 'active',
     notes: '', ssh_user: '', ssh_port: '22', ssh_public_key: '',
-    ssh_host_key: '', login_user: '', login_password: '',
+    ssh_host_key: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -27,7 +27,6 @@ export default function ServerFormPage() {
         ...prev, ...s,
         cpu_cores: s.cpu_cores || '', ram_mb: s.ram_mb || '',
         storage_gb: s.storage_gb || '', ssh_port: s.ssh_port || '22',
-        login_password: '',
       })));
     }
   }, [id, isEdit]);
@@ -47,7 +46,6 @@ export default function ServerFormPage() {
       storage_gb: form.storage_gb ? Number(form.storage_gb) : null,
       ssh_port: form.ssh_port ? Number(form.ssh_port) : 22,
     };
-    if (!body.login_password) delete body.login_password;
 
     try {
       if (isEdit) {
@@ -150,13 +148,6 @@ export default function ServerFormPage() {
         </div>
         <Field name="ssh_public_key" label={t('ssh_public_key')} />
         <Field name="ssh_host_key" label={t('ssh_host_key')} />
-
-        <hr style={{ borderColor: 'var(--color-border)' }} />
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field name="login_user" label={t('login_user')} />
-          <Field name="login_password" label={t('login_password')} type="password" placeholder={isEdit ? '(unchanged)' : ''} />
-        </div>
 
         <div>
           <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('notes')}</label>
