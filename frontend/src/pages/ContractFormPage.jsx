@@ -15,7 +15,8 @@ export default function ContractFormPage() {
     server_id: '', contract_number: '', monthly_cost: '', regular_cost: '',
     billing_cycle: 'monthly', start_date: '', end_date: '',
     promo_price: false, promo_end_date: '', cancellation_period_days: '30',
-    next_cancellation_date: '', auto_renew: true, notes: '',
+    next_cancellation_date: '', auto_renew: true, contract_period: '',
+    is_cancelled: false, notes: '',
   });
   const [providerName, setProviderName] = useState('');
   const [error, setError] = useState('');
@@ -29,6 +30,7 @@ export default function ContractFormPage() {
           ...prev, ...c,
           promo_price: !!c.promo_price,
           auto_renew: !!c.auto_renew,
+          is_cancelled: !!c.is_cancelled,
           monthly_cost: c.monthly_cost || '',
           regular_cost: c.regular_cost || '',
           cancellation_period_days: c.cancellation_period_days || '30',
@@ -58,8 +60,8 @@ export default function ContractFormPage() {
     const body = {
       ...form,
       server_id: Number(form.server_id),
-      monthly_cost: Number(form.monthly_cost) || 0,
-      regular_cost: form.regular_cost ? Number(form.regular_cost) : null,
+      monthly_cost: parseFloat(String(form.monthly_cost).replace(',', '.')) || 0,
+      regular_cost: form.regular_cost ? parseFloat(String(form.regular_cost).replace(',', '.')) : null,
       cancellation_period_days: Number(form.cancellation_period_days) || 30,
     };
 
@@ -111,20 +113,24 @@ export default function ContractFormPage() {
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
           <div>
             <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('monthly_cost')}</label>
-            <input name="monthly_cost" type="number" step="0.01" value={form.monthly_cost} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} />
+            <input name="monthly_cost" type="text" inputMode="decimal" value={form.monthly_cost} onChange={handleChange}
+              placeholder="0.00" className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
           </div>
           <div>
             <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('regular_cost')}</label>
-            <input name="regular_cost" type="number" step="0.01" value={form.regular_cost} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} />
+            <input name="regular_cost" type="text" inputMode="decimal" value={form.regular_cost} onChange={handleChange}
+              placeholder="0.00" className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
           </div>
           <div>
             <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('billing_cycle')}</label>
             <select name="billing_cycle" value={form.billing_cycle} onChange={handleChange}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle}>
+              <option value="hourly">Hourly</option>
               <option value="monthly">Monthly</option>
+              <option value="quarterly">Quarterly (3 months)</option>
+              <option value="semi-annual">Semi-Annual (6 months)</option>
               <option value="yearly">Yearly</option>
+              <option value="biennial">Biennial (2 years)</option>
               <option value="prepaid">Prepaid</option>
             </select>
           </div>
@@ -152,6 +158,24 @@ export default function ContractFormPage() {
             <input type="checkbox" name="auto_renew" checked={form.auto_renew} onChange={handleChange} className="w-4 h-4 rounded" />
             {t('auto_renew')}
           </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <input type="checkbox" name="is_cancelled" checked={form.is_cancelled} onChange={handleChange} className="w-4 h-4 rounded" />
+            {t('is_cancelled')}
+          </label>
+        </div>
+
+        <div>
+          <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contract_period')}</label>
+          <select name="contract_period" value={form.contract_period || ''} onChange={handleChange}
+            className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle}>
+            <option value="">—</option>
+            <option value="1 month">1 Month</option>
+            <option value="3 months">3 Months</option>
+            <option value="6 months">6 Months</option>
+            <option value="12 months">12 Months</option>
+            <option value="24 months">24 Months</option>
+            <option value="36 months">36 Months</option>
+          </select>
         </div>
 
         {form.promo_price && (

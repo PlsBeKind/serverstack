@@ -3,12 +3,13 @@
  * @param {import('better-sqlite3').Database} db
  */
 export function checkAlerts(db) {
-  // Contracts with cancellation date within 30 days
+  // Only alert on cancelled contracts (won't auto-renew, will actually expire)
   const expiringContracts = db.prepare(`
     SELECT c.*, s.name as server_name
     FROM contracts c
     LEFT JOIN servers s ON c.server_id = s.id
-    WHERE c.next_cancellation_date IS NOT NULL
+    WHERE c.is_cancelled = 1
+      AND c.next_cancellation_date IS NOT NULL
       AND date(c.next_cancellation_date) <= date('now', '+30 days')
       AND date(c.next_cancellation_date) >= date('now')
   `).all();

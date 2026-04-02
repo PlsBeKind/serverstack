@@ -1,10 +1,13 @@
 import { useState, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Lock, Download, Upload, Check, AlertCircle } from 'lucide-react';
+import { Globe, Lock, Download, Upload, Check, AlertCircle, DollarSign } from 'lucide-react';
 import { api } from '../api/client.js';
+
+const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'PLN', 'CZK', 'SEK', 'NOK', 'DKK'];
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
+  const [currency, setCurrency] = useState(() => localStorage.getItem('currency') || 'EUR');
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '' });
   const [pwMsg, setPwMsg] = useState('');
   const [pwError, setPwError] = useState('');
@@ -15,6 +18,11 @@ export default function SettingsPage() {
   const changeLanguage = (lng) => {
     i18n.changeLanguage(lng);
     localStorage.setItem('language', lng);
+  };
+
+  const changeCurrency = (cur) => {
+    setCurrency(cur);
+    localStorage.setItem('currency', cur);
   };
 
   const handleChangePw = async (e) => {
@@ -70,6 +78,19 @@ export default function SettingsPage() {
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${i18n.language === lng ? 'text-white' : 'hover:bg-white/5'}`}
               style={i18n.language === lng ? { background: 'var(--color-primary)' } : { color: 'var(--color-text-muted)' }}>
               {t(`language.${lng}`)}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="rounded-xl p-6" style={cardStyle}>
+        <h3 className="flex items-center gap-2 font-semibold mb-4"><DollarSign size={18} style={{ color: '#f59e0b' }} /> {t('settings.currency')}</h3>
+        <div className="flex flex-wrap gap-2">
+          {CURRENCIES.map(cur => (
+            <button key={cur} onClick={() => changeCurrency(cur)}
+              className={`px-4 py-2 rounded-lg text-sm font-medium font-mono transition-all ${currency === cur ? 'text-white' : 'hover:bg-white/5'}`}
+              style={currency === cur ? { background: 'var(--color-primary)' } : { color: 'var(--color-text-muted)' }}>
+              {cur}
             </button>
           ))}
         </div>

@@ -6,7 +6,7 @@ describe('Server Routes', () => {
   let app, db, token, providerId;
 
   beforeEach(async () => {
-    ({ app, db } = createTestApp());
+    ({ app, db } = await createTestApp());
     token = await getAuthToken(request, app);
     providerId = seedProvider(db);
   });

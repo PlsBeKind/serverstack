@@ -6,7 +6,7 @@ describe('Provider Routes', () => {
   let app, db, token;
 
   beforeEach(async () => {
-    ({ app, db } = createTestApp());
+    ({ app, db } = await createTestApp());
     token = await getAuthToken(request, app);
   });
 

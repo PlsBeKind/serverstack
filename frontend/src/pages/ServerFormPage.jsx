@@ -1,8 +1,20 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Network } from 'lucide-react';
 import { api } from '../api/client.js';
+
+const inputStyle = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
+
+function Field({ name, label, value, onChange, type = 'text', ...rest }) {
+  return (
+    <div>
+      <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{label}</label>
+      <input type={type} name={name} value={value || ''} onChange={onChange}
+        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} {...rest} />
+    </div>
+  );
+}
 
 export default function ServerFormPage() {
   const { t } = useTranslation('servers');
@@ -17,21 +29,48 @@ export default function ServerFormPage() {
     notes: '', ssh_user: '', ssh_port: '22', ssh_public_key: '',
     ssh_host_key: '',
   });
+  const [ramUnit, setRamUnit] = useState('GB');
+  const [ips, setIps] = useState([]);
+  const [existingIps, setExistingIps] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     api.getProviders().then(setProviders);
     if (isEdit) {
-      api.getServer(id).then(s => setForm(prev => ({
-        ...prev, ...s,
-        cpu_cores: s.cpu_cores || '', ram_mb: s.ram_mb || '',
-        storage_gb: s.storage_gb || '', ssh_port: s.ssh_port || '22',
-      })));
+      api.getServer(id).then(s => {
+        const ramVal = s.ram_mb || '';
+        const isCleanGb = ramVal && ramVal % 1024 === 0;
+        if (isCleanGb) setRamUnit('GB');
+        setForm(prev => ({
+          ...prev, ...s,
+          cpu_cores: s.cpu_cores || '',
+          ram_mb: isCleanGb ? ramVal / 1024 : ramVal,
+          storage_gb: s.storage_gb || '', ssh_port: s.ssh_port || '22',
+        }));
+      });
+      api.getServerIps(id).then(setExistingIps);
     }
   }, [id, isEdit]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const addIpRow = () => {
+    setIps([...ips, { address: '', type: 'primary', rdns: '' }]);
+  };
+
+  const updateIpRow = (index, field, value) => {
+    setIps(ips.map((ip, i) => i === index ? { ...ip, [field]: value } : ip));
+  };
+
+  const removeIpRow = (index) => {
+    setIps(ips.filter((_, i) => i !== index));
+  };
+
+  const deleteExistingIp = async (ipId) => {
+    await api.deleteIp(ipId);
+    setExistingIps(existingIps.filter(ip => ip.id !== ipId));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -42,35 +81,35 @@ export default function ServerFormPage() {
       ...form,
       provider_id: Number(form.provider_id),
       cpu_cores: form.cpu_cores ? Number(form.cpu_cores) : null,
-      ram_mb: form.ram_mb ? Number(form.ram_mb) : null,
+      ram_mb: form.ram_mb ? (ramUnit === 'GB' ? Number(form.ram_mb) * 1024 : Number(form.ram_mb)) : null,
       storage_gb: form.storage_gb ? Number(form.storage_gb) : null,
       ssh_port: form.ssh_port ? Number(form.ssh_port) : 22,
     };
 
     try {
+      let serverId;
       if (isEdit) {
         await api.updateServer(id, body);
-        navigate(`/servers/${id}`);
+        serverId = Number(id);
       } else {
         const created = await api.createServer(body);
-        navigate(`/servers/${created.id}`);
+        serverId = created.id;
       }
+
+      // Save new IPs with auto-detected version
+      const validIps = ips.filter(ip => ip.address.trim());
+      for (const ip of validIps) {
+        const version = ip.address.includes(':') ? 'ipv6' : 'ipv4';
+        await api.createIp({ server_id: serverId, ...ip, version });
+      }
+
+      navigate(`/servers/${serverId}`);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
       setLoading(false);
     }
   };
-
-  const inputStyle = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
-
-  const Field = ({ name, label, type = 'text', ...rest }) => (
-    <div>
-      <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{label}</label>
-      <input type={type} name={name} value={form[name] || ''} onChange={handleChange}
-        className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} {...rest} />
-    </div>
-  );
 
   return (
     <div className="max-w-2xl space-y-6">
@@ -83,7 +122,7 @@ export default function ServerFormPage() {
         {error && <div className="px-4 py-3 rounded-lg text-sm" style={{ background: '#451a03', color: '#f87171' }}>{error}</div>}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field name="name" label={t('name')} required />
+          <Field name="name" label={t('name')} value={form.name} onChange={handleChange} required />
           <div>
             <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('provider')}</label>
             <select name="provider_id" value={form.provider_id} onChange={handleChange} required
@@ -106,18 +145,31 @@ export default function ServerFormPage() {
               <option value="cloud">{t('type_cloud')}</option>
             </select>
           </div>
-          <Field name="hostname" label={t('hostname')} />
+          <Field name="hostname" label={t('hostname')} value={form.hostname} onChange={handleChange} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field name="location" label={t('location')} />
-          <Field name="os" label={t('os')} />
+          <Field name="location" label={t('location')} value={form.location} onChange={handleChange} />
+          <Field name="os" label={t('os')} value={form.os} onChange={handleChange} />
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
-          <Field name="cpu_cores" label={t('cpu_cores')} type="number" />
-          <Field name="ram_mb" label={t('ram_mb')} type="number" />
-          <Field name="storage_gb" label={t('storage_gb')} type="number" />
+          <Field name="cpu_cores" label={t('cpu_cores')} value={form.cpu_cores} onChange={handleChange} type="number" />
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <label className="text-xs font-medium uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>
+                {ramUnit === 'GB' ? t('ram_gb') : t('ram_mb')}
+              </label>
+              <button type="button" onClick={() => setRamUnit(ramUnit === 'GB' ? 'MB' : 'GB')}
+                className="text-[10px] font-mono px-1.5 py-0.5 rounded hover:bg-white/10 transition-colors"
+                style={{ color: 'var(--color-primary)', border: '1px solid var(--color-border)' }}>
+                {ramUnit === 'GB' ? 'MB' : 'GB'}
+              </button>
+            </div>
+            <input name="ram_mb" type="number" value={form.ram_mb || ''} onChange={handleChange}
+              className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} />
+          </div>
+          <Field name="storage_gb" label={t('storage_gb')} value={form.storage_gb} onChange={handleChange} type="number" />
           <div>
             <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('storage_type')}</label>
             <select name="storage_type" value={form.storage_type || ''} onChange={handleChange}
@@ -142,12 +194,82 @@ export default function ServerFormPage() {
 
         <hr style={{ borderColor: 'var(--color-border)' }} />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <Field name="ssh_user" label={t('ssh_user')} />
-          <Field name="ssh_port" label={t('ssh_port')} type="number" />
+        {/* IP Addresses */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Network size={16} style={{ color: '#06b6d4' }} /> {t('ip_addresses')}
+            </h3>
+            <button type="button" onClick={addIpRow}
+              className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
+              <Plus size={12} /> {t('add_ip')}
+            </button>
+          </div>
+
+          {/* Existing IPs (edit mode) */}
+          {existingIps.map(ip => (
+            <div key={ip.id} className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+              <span className="font-mono flex-1">{ip.address}</span>
+              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-text-muted)' }}>{ip.version}</span>
+              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#064e3b', color: '#10b981' }}>{ip.type}</span>
+              {ip.rdns && <span className="text-xs font-mono" style={{ color: 'var(--color-text-muted)' }}>{ip.rdns}</span>}
+              <button type="button" onClick={() => deleteExistingIp(ip.id)}
+                className="p-1 rounded hover:bg-white/5" style={{ color: 'var(--color-danger)' }}>
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+
+          {/* New IP rows */}
+          {ips.map((ip, i) => (
+            <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 mb-2 items-end">
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_address')}</label>}
+                <div className="relative">
+                  <input value={ip.address} onChange={(e) => updateIpRow(i, 'address', e.target.value)}
+                    placeholder="10.0.0.1, 10.0.0.0/24, or 2a01::" className="w-full px-3 py-2 pr-14 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
+                  {ip.address && (
+                    <span className="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] font-mono px-1.5 py-0.5 rounded"
+                      style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-text-muted)' }}>
+                      {ip.address.includes(':') ? 'IPv6' : 'IPv4'}
+                    </span>
+                  )}
+                </div>
+              </div>
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_type')}</label>}
+                <select value={ip.type} onChange={(e) => updateIpRow(i, 'type', e.target.value)}
+                  className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                  <option value="primary">Primary</option>
+                  <option value="additional">Additional</option>
+                  <option value="floating">Floating</option>
+                </select>
+              </div>
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_rdns')}</label>}
+                <input value={ip.rdns} onChange={(e) => updateIpRow(i, 'rdns', e.target.value)}
+                  placeholder="srv1.example.com" className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
+              </div>
+              <button type="button" onClick={() => removeIpRow(i)}
+                className="p-2 rounded-lg hover:bg-white/5 mb-0.5" style={{ color: 'var(--color-danger)' }}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+
+          {ips.length === 0 && existingIps.length === 0 && (
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
+          )}
         </div>
-        <Field name="ssh_public_key" label={t('ssh_public_key')} />
-        <Field name="ssh_host_key" label={t('ssh_host_key')} />
+
+        <hr style={{ borderColor: 'var(--color-border)' }} />
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <Field name="ssh_user" label={t('ssh_user')} value={form.ssh_user} onChange={handleChange} />
+          <Field name="ssh_port" label={t('ssh_port')} value={form.ssh_port} onChange={handleChange} type="number" />
+        </div>
+        <Field name="ssh_public_key" label={t('ssh_public_key')} value={form.ssh_public_key} onChange={handleChange} />
+        <Field name="ssh_host_key" label={t('ssh_host_key')} value={form.ssh_host_key} onChange={handleChange} />
 
         <div>
           <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('notes')}</label>

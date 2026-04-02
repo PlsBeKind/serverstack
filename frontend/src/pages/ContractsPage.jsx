@@ -19,9 +19,9 @@ export default function ContractsPage() {
     load();
   };
 
-  const isExpiringSoon = (date) => {
-    if (!date) return false;
-    const diff = (new Date(date) - new Date()) / (1000 * 60 * 60 * 24);
+  const isExpiringSoon = (contract) => {
+    if (!contract.is_cancelled || !contract.next_cancellation_date) return false;
+    const diff = (new Date(contract.next_cancellation_date) - new Date()) / (1000 * 60 * 60 * 24);
     return diff >= 0 && diff <= 30;
   };
 
@@ -49,7 +49,7 @@ export default function ContractsPage() {
         </div>
         <div className="rounded-xl p-4" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
           <p className="text-xs uppercase tracking-wider mb-1" style={{ color: 'var(--color-text-muted)' }}>{t('expiring_soon')}</p>
-          <p className="text-lg font-bold font-mono">{contracts.filter(c => isExpiringSoon(c.next_cancellation_date)).length}</p>
+          <p className="text-lg font-bold font-mono">{contracts.filter(c => isExpiringSoon(c)).length}</p>
         </div>
       </div>
 
@@ -69,14 +69,15 @@ export default function ContractsPage() {
                 <div className="min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <p className="font-semibold text-sm">{c.server_name || `Server #${c.server_id}`}</p>
-                    {isExpiringSoon(c.next_cancellation_date) && (
+                    {isExpiringSoon(c) && (
                       <span className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full" style={{ background: '#451a03', color: '#f59e0b' }}>
                         <AlertTriangle size={10} /> {t('expiring_soon')}
                       </span>
                     )}
                     {c.promo_price ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#064e3b', color: '#10b981' }}>PROMO</span> : null}
+                    {c.is_cancelled ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>{t('is_cancelled')}</span> : null}
                   </div>
-                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{c.provider_name}</p>
+                  <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{c.provider_name}{c.contract_period ? ` \u00b7 ${c.contract_period}` : ''}</p>
                   {c.contract_number && <p className="text-xs font-mono" style={{ color: 'var(--color-text-muted)' }}>#{c.contract_number}</p>}
                 </div>
                 <div className="flex items-center gap-2">

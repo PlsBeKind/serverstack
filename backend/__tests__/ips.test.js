@@ -6,7 +6,7 @@ describe('IP Address Routes', () => {
   let app, db, token, serverId;
 
   beforeEach(async () => {
-    ({ app, db } = createTestApp());
+    ({ app, db } = await createTestApp());
     token = await getAuthToken(request, app);
     const providerId = seedProvider(db);
     serverId = seedServer(db, providerId);

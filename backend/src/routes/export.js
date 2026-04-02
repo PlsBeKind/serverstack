@@ -64,13 +64,13 @@ export default function exportRoutes(db) {
           const mappedServerId = serverMap[c.server_id];
           if (!mappedServerId) continue;
           db.prepare(`
-            INSERT INTO contracts (server_id, contract_number, monthly_cost, regular_cost, billing_cycle, start_date, end_date, cancellation_period_days, next_cancellation_date, auto_renew, promo_price, promo_end_date, notes)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO contracts (server_id, contract_number, monthly_cost, regular_cost, billing_cycle, start_date, end_date, cancellation_period_days, next_cancellation_date, auto_renew, promo_price, promo_end_date, contract_period, is_cancelled, notes)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
           `).run(
             mappedServerId, c.contract_number, c.monthly_cost, c.regular_cost,
             c.billing_cycle, c.start_date, c.end_date,
             c.cancellation_period_days, c.next_cancellation_date,
-            c.auto_renew, c.promo_price, c.promo_end_date, c.notes
+            c.auto_renew, c.promo_price, c.promo_end_date, c.contract_period, c.is_cancelled, c.notes
           );
           importedCount.contracts++;
         }

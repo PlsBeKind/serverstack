@@ -5,8 +5,8 @@ import { checkAlerts } from '../src/jobs/alertChecker.js';
 describe('Alert Checker', () => {
   let db;
 
-  beforeEach(() => {
-    db = initDatabase(':memory:');
+  beforeEach(async () => {
+    db = await initDatabase(':memory:');
   });
 
   it('should create alert for expiring contracts', () => {
@@ -14,7 +14,7 @@ describe('Alert Checker', () => {
     const sid = db.prepare("INSERT INTO servers (provider_id, name) VALUES (?, ?)").run(pid, 'srv1').lastInsertRowid;
 
     const futureDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    db.prepare('INSERT INTO contracts (server_id, monthly_cost, next_cancellation_date) VALUES (?, ?, ?)').run(sid, 10, futureDate);
+    db.prepare('INSERT INTO contracts (server_id, monthly_cost, next_cancellation_date, is_cancelled) VALUES (?, ?, ?, ?)').run(sid, 10, futureDate, 1);
 
     checkAlerts(db);
 
@@ -45,7 +45,7 @@ describe('Alert Checker', () => {
     const sid = db.prepare("INSERT INTO servers (provider_id, name) VALUES (?, ?)").run(pid, 'srv1').lastInsertRowid;
 
     const futureDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
-    db.prepare('INSERT INTO contracts (server_id, monthly_cost, next_cancellation_date) VALUES (?, ?, ?)').run(sid, 10, futureDate);
+    db.prepare('INSERT INTO contracts (server_id, monthly_cost, next_cancellation_date, is_cancelled) VALUES (?, ?, ?, ?)').run(sid, 10, futureDate, 1);
 
     checkAlerts(db);
     checkAlerts(db);
