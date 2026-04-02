@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Network } from 'lucide-react';
 import { api } from '../api/client.js';
 
 const inputStyle = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
@@ -29,6 +29,8 @@ export default function ServerFormPage() {
     notes: '', ssh_user: '', ssh_port: '22', ssh_public_key: '',
     ssh_host_key: '',
   });
+  const [ips, setIps] = useState([]);
+  const [existingIps, setExistingIps] = useState([]);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -40,10 +42,28 @@ export default function ServerFormPage() {
         cpu_cores: s.cpu_cores || '', ram_mb: s.ram_mb || '',
         storage_gb: s.storage_gb || '', ssh_port: s.ssh_port || '22',
       })));
+      api.getServerIps(id).then(setExistingIps);
     }
   }, [id, isEdit]);
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
+
+  const addIpRow = () => {
+    setIps([...ips, { address: '', version: 'ipv4', type: 'primary', rdns: '' }]);
+  };
+
+  const updateIpRow = (index, field, value) => {
+    setIps(ips.map((ip, i) => i === index ? { ...ip, [field]: value } : ip));
+  };
+
+  const removeIpRow = (index) => {
+    setIps(ips.filter((_, i) => i !== index));
+  };
+
+  const deleteExistingIp = async (ipId) => {
+    await api.deleteIp(ipId);
+    setExistingIps(existingIps.filter(ip => ip.id !== ipId));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -60,13 +80,22 @@ export default function ServerFormPage() {
     };
 
     try {
+      let serverId;
       if (isEdit) {
         await api.updateServer(id, body);
-        navigate(`/servers/${id}`);
+        serverId = Number(id);
       } else {
         const created = await api.createServer(body);
-        navigate(`/servers/${created.id}`);
+        serverId = created.id;
       }
+
+      // Save new IPs
+      const validIps = ips.filter(ip => ip.address.trim());
+      for (const ip of validIps) {
+        await api.createIp({ server_id: serverId, ...ip });
+      }
+
+      navigate(`/servers/${serverId}`);
     } catch (err) {
       setError(err.response?.data?.error || err.message);
     } finally {
@@ -140,6 +169,76 @@ export default function ServerFormPage() {
             <option value="inactive">{t('common:status.inactive')}</option>
             <option value="suspended">{t('common:status.suspended')}</option>
           </select>
+        </div>
+
+        <hr style={{ borderColor: 'var(--color-border)' }} />
+
+        {/* IP Addresses */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <Network size={16} style={{ color: '#06b6d4' }} /> {t('ip_addresses')}
+            </h3>
+            <button type="button" onClick={addIpRow}
+              className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
+              <Plus size={12} /> {t('add_ip')}
+            </button>
+          </div>
+
+          {/* Existing IPs (edit mode) */}
+          {existingIps.map(ip => (
+            <div key={ip.id} className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+              <span className="font-mono flex-1">{ip.address}</span>
+              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-text-muted)' }}>{ip.version}</span>
+              <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#064e3b', color: '#10b981' }}>{ip.type}</span>
+              {ip.rdns && <span className="text-xs font-mono" style={{ color: 'var(--color-text-muted)' }}>{ip.rdns}</span>}
+              <button type="button" onClick={() => deleteExistingIp(ip.id)}
+                className="p-1 rounded hover:bg-white/5" style={{ color: 'var(--color-danger)' }}>
+                <Trash2 size={12} />
+              </button>
+            </div>
+          ))}
+
+          {/* New IP rows */}
+          {ips.map((ip, i) => (
+            <div key={i} className="grid grid-cols-[1fr_auto_auto_1fr_auto] gap-2 mb-2 items-end">
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_address')}</label>}
+                <input value={ip.address} onChange={(e) => updateIpRow(i, 'address', e.target.value)}
+                  placeholder="10.0.0.1 or 10.0.0.0/24" className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
+              </div>
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_version')}</label>}
+                <select value={ip.version} onChange={(e) => updateIpRow(i, 'version', e.target.value)}
+                  className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                  <option value="ipv4">IPv4</option>
+                  <option value="ipv6">IPv6</option>
+                </select>
+              </div>
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_type')}</label>}
+                <select value={ip.type} onChange={(e) => updateIpRow(i, 'type', e.target.value)}
+                  className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                  <option value="primary">Primary</option>
+                  <option value="additional">Additional</option>
+                  <option value="floating">Floating</option>
+                </select>
+              </div>
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('ip_rdns')}</label>}
+                <input value={ip.rdns} onChange={(e) => updateIpRow(i, 'rdns', e.target.value)}
+                  placeholder="srv1.example.com" className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
+              </div>
+              <button type="button" onClick={() => removeIpRow(i)}
+                className="p-2 rounded-lg hover:bg-white/5 mb-0.5" style={{ color: 'var(--color-danger)' }}>
+                <Trash2 size={14} />
+              </button>
+            </div>
+          ))}
+
+          {ips.length === 0 && existingIps.length === 0 && (
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
+          )}
         </div>
 
         <hr style={{ borderColor: 'var(--color-border)' }} />
