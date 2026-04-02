@@ -7,6 +7,8 @@ import serverRoutes from '../src/routes/servers.js';
 import contractRoutes from '../src/routes/contracts.js';
 import ipRoutes from '../src/routes/ips.js';
 import serviceRoutes from '../src/routes/services.js';
+import dashboardRoutes from '../src/routes/dashboard.js';
+import exportRoutes from '../src/routes/export.js';
 
 /**
  * Create a fresh app + in-memory DB for testing.
@@ -25,6 +27,8 @@ export function createTestApp() {
   app.use('/api/v1/contracts', authMiddleware, contractRoutes(db));
   app.use('/api/v1/ips', authMiddleware, ipRoutes(db));
   app.use('/api/v1/services', authMiddleware, serviceRoutes(db));
+  app.use('/api/v1/dashboard', authMiddleware, dashboardRoutes(db));
+  app.use('/api/v1', authMiddleware, exportRoutes(db));
 
   return { app, db };
 }

@@ -11,6 +11,8 @@ import serverRoutes from './routes/servers.js';
 import contractRoutes from './routes/contracts.js';
 import ipRoutes from './routes/ips.js';
 import serviceRoutes from './routes/services.js';
+import dashboardRoutes from './routes/dashboard.js';
+import exportRoutes from './routes/export.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
@@ -31,6 +33,8 @@ app.use('/api/v1/servers', authMiddleware, serverRoutes(db));
 app.use('/api/v1/contracts', authMiddleware, contractRoutes(db));
 app.use('/api/v1/ips', authMiddleware, ipRoutes(db));
 app.use('/api/v1/services', authMiddleware, serviceRoutes(db));
+app.use('/api/v1/dashboard', authMiddleware, dashboardRoutes(db));
+app.use('/api/v1', authMiddleware, exportRoutes(db));
 
 // Serve frontend in production
 const frontendDist = path.resolve(__dirname, '../../frontend/dist');
