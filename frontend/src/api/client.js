@@ -53,13 +53,7 @@ export const api = {
   updateServer: (id, data) => http.put(`/servers/${id}`, data).then(r => r.data),
   deleteServer: (id) => http.delete(`/servers/${id}`),
 
-  // Contracts
-  getContracts: () => http.get('/contracts').then(r => r.data),
-  getContract: (id) => http.get(`/contracts/${id}`).then(r => r.data),
-  getExpiringContracts: (days = 30) => http.get(`/contracts/expiring?days=${days}`).then(r => r.data),
-  createContract: (data) => http.post('/contracts', data).then(r => r.data),
-  updateContract: (id, data) => http.put(`/contracts/${id}`, data).then(r => r.data),
-  deleteContract: (id) => http.delete(`/contracts/${id}`),
+  getExpiringServers: (days = 30) => http.get(`/servers/expiring?days=${days}`).then(r => r.data),
 
   // IPs
   getIps: () => http.get('/ips').then(r => r.data),

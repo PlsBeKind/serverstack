@@ -10,17 +10,17 @@ const COLORS = ['#10b981', '#06b6d4', '#8b5cf6', '#f59e0b', '#ef4444', '#ec4899'
 export default function CostAnalysisPage() {
   const { t } = useTranslation('contracts');
   const [costs, setCosts] = useState(null);
-  const [contracts, setContracts] = useState([]);
+  const [servers, setServers] = useState([]);
 
   useEffect(() => {
-    Promise.all([api.getCosts(), api.getContracts()])
-      .then(([c, cList]) => { setCosts(c); setContracts(cList); });
+    Promise.all([api.getCosts(), api.getServers()])
+      .then(([c, s]) => { setCosts(c); setServers(s); });
   }, []);
 
   if (!costs) return <div className="text-center py-16 opacity-50">{t('common:actions.loading')}</div>;
 
-  const promoContracts = contracts.filter(c => c.promo_price);
-  const totalSavings = promoContracts.reduce((sum, c) => sum + ((c.regular_cost || 0) - (c.monthly_cost || 0)), 0);
+  const promoServers = servers.filter(s => s.promo_price);
+  const totalSavings = promoServers.reduce((sum, s) => sum + ((s.regular_cost || 0) - (s.monthly_cost || 0)), 0);
 
   return (
     <div className="space-y-6">
@@ -68,17 +68,17 @@ export default function CostAnalysisPage() {
         </div>
       )}
 
-      {promoContracts.length > 0 && (
+      {promoServers.length > 0 && (
         <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
           <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>{t('promo_price')}</h3>
           <div className="space-y-2">
-            {promoContracts.map(c => (
-              <div key={c.id} className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
-                <span>{c.server_name}</span>
+            {promoServers.map(s => (
+              <div key={s.id} className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+                <span>{s.name}</span>
                 <div className="flex items-center gap-3">
-                  <CostBadge amount={c.monthly_cost} promo />
-                  {c.regular_cost && <span className="line-through text-xs" style={{ color: 'var(--color-text-muted)' }}><CostBadge amount={c.regular_cost} /></span>}
-                  {c.promo_end_date && <span className="text-xs" style={{ color: 'var(--color-warning)' }}>{c.promo_end_date}</span>}
+                  <CostBadge amount={s.monthly_cost} promo />
+                  {s.regular_cost && <span className="line-through text-xs" style={{ color: 'var(--color-text-muted)' }}><CostBadge amount={s.regular_cost} /></span>}
+                  {s.promo_end_date && <span className="text-xs" style={{ color: 'var(--color-warning)' }}>{s.promo_end_date}</span>}
                 </div>
               </div>
             ))}

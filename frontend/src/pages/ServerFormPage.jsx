@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plus, Trash2, Network } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Network, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { api } from '../api/client.js';
 
 const inputStyle = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
@@ -26,12 +26,16 @@ export default function ServerFormPage() {
   const [form, setForm] = useState({
     provider_id: '', name: '', type: '', hostname: '', location: '', os: '',
     cpu_cores: '', ram_mb: '', storage_gb: '', storage_type: '', status: 'active',
-    notes: '', ssh_user: '', ssh_port: '22', ssh_public_key: '',
-    ssh_host_key: '',
+    notes: '', ssh_user: '', ssh_port: '22', ssh_public_key: '', ssh_host_key: '',
+    contract_number: '', monthly_cost: '', regular_cost: '', billing_cycle: 'monthly',
+    contract_start_date: '', contract_end_date: '', cancellation_period_days: '30',
+    next_cancellation_date: '', auto_renew: true, promo_price: false, promo_end_date: '',
+    contract_period: '', is_cancelled: false, contract_notes: '',
   });
   const [ramUnit, setRamUnit] = useState('GB');
   const [ips, setIps] = useState([]);
   const [existingIps, setExistingIps] = useState([]);
+  const [showContract, setShowContract] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -42,35 +46,29 @@ export default function ServerFormPage() {
         const ramVal = s.ram_mb || '';
         const isCleanGb = ramVal && ramVal % 1024 === 0;
         if (isCleanGb) setRamUnit('GB');
+        if (s.monthly_cost || s.contract_number || s.contract_start_date) setShowContract(true);
         setForm(prev => ({
           ...prev, ...s,
-          cpu_cores: s.cpu_cores || '',
-          ram_mb: isCleanGb ? ramVal / 1024 : ramVal,
+          cpu_cores: s.cpu_cores || '', ram_mb: isCleanGb ? ramVal / 1024 : ramVal,
           storage_gb: s.storage_gb || '', ssh_port: s.ssh_port || '22',
+          monthly_cost: s.monthly_cost || '', regular_cost: s.regular_cost || '',
+          cancellation_period_days: s.cancellation_period_days || '30',
+          auto_renew: !!s.auto_renew, promo_price: !!s.promo_price, is_cancelled: !!s.is_cancelled,
         }));
       });
       api.getServerIps(id).then(setExistingIps);
     }
   }, [id, isEdit]);
 
-  const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
-
-  const addIpRow = () => {
-    setIps([...ips, { address: '', type: 'primary', rdns: '' }]);
+  const handleChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
   };
 
-  const updateIpRow = (index, field, value) => {
-    setIps(ips.map((ip, i) => i === index ? { ...ip, [field]: value } : ip));
-  };
-
-  const removeIpRow = (index) => {
-    setIps(ips.filter((_, i) => i !== index));
-  };
-
-  const deleteExistingIp = async (ipId) => {
-    await api.deleteIp(ipId);
-    setExistingIps(existingIps.filter(ip => ip.id !== ipId));
-  };
+  const addIpRow = () => setIps([...ips, { address: '', type: 'primary', rdns: '' }]);
+  const updateIpRow = (index, field, value) => setIps(ips.map((ip, i) => i === index ? { ...ip, [field]: value } : ip));
+  const removeIpRow = (index) => setIps(ips.filter((_, i) => i !== index));
+  const deleteExistingIp = async (ipId) => { await api.deleteIp(ipId); setExistingIps(existingIps.filter(ip => ip.id !== ipId)); };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -84,19 +82,16 @@ export default function ServerFormPage() {
       ram_mb: form.ram_mb ? (ramUnit === 'GB' ? Number(form.ram_mb) * 1024 : Number(form.ram_mb)) : null,
       storage_gb: form.storage_gb ? Number(form.storage_gb) : null,
       ssh_port: form.ssh_port ? Number(form.ssh_port) : 22,
+      monthly_cost: parseFloat(String(form.monthly_cost).replace(',', '.')) || 0,
+      regular_cost: form.regular_cost ? parseFloat(String(form.regular_cost).replace(',', '.')) : null,
+      cancellation_period_days: Number(form.cancellation_period_days) || 30,
     };
 
     try {
       let serverId;
-      if (isEdit) {
-        await api.updateServer(id, body);
-        serverId = Number(id);
-      } else {
-        const created = await api.createServer(body);
-        serverId = created.id;
-      }
+      if (isEdit) { await api.updateServer(id, body); serverId = Number(id); }
+      else { const created = await api.createServer(body); serverId = created.id; }
 
-      // Save new IPs with auto-detected version
       const validIps = ips.filter(ip => ip.address.trim());
       for (const ip of validIps) {
         const version = ip.address.includes(':') ? 'ipv6' : 'ipv4';
@@ -121,6 +116,7 @@ export default function ServerFormPage() {
       <form onSubmit={handleSubmit} className="rounded-xl p-6 space-y-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
         {error && <div className="px-4 py-3 rounded-lg text-sm" style={{ background: '#451a03', color: '#f87171' }}>{error}</div>}
 
+        {/* Server info */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field name="name" label={t('name')} value={form.name} onChange={handleChange} required />
           <div>
@@ -197,30 +193,22 @@ export default function ServerFormPage() {
         {/* IP Addresses */}
         <div>
           <div className="flex items-center justify-between mb-3">
-            <h3 className="flex items-center gap-2 text-sm font-semibold">
-              <Network size={16} style={{ color: '#06b6d4' }} /> {t('ip_addresses')}
-            </h3>
-            <button type="button" onClick={addIpRow}
-              className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><Network size={16} style={{ color: '#06b6d4' }} /> {t('ip_addresses')}</h3>
+            <button type="button" onClick={addIpRow} className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
               <Plus size={12} /> {t('add_ip')}
             </button>
           </div>
 
-          {/* Existing IPs (edit mode) */}
           {existingIps.map(ip => (
             <div key={ip.id} className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
               <span className="font-mono flex-1">{ip.address}</span>
               <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-text-muted)' }}>{ip.version}</span>
               <span className="text-xs px-1.5 py-0.5 rounded" style={{ background: '#064e3b', color: '#10b981' }}>{ip.type}</span>
               {ip.rdns && <span className="text-xs font-mono" style={{ color: 'var(--color-text-muted)' }}>{ip.rdns}</span>}
-              <button type="button" onClick={() => deleteExistingIp(ip.id)}
-                className="p-1 rounded hover:bg-white/5" style={{ color: 'var(--color-danger)' }}>
-                <Trash2 size={12} />
-              </button>
+              <button type="button" onClick={() => deleteExistingIp(ip.id)} className="p-1 rounded hover:bg-white/5" style={{ color: 'var(--color-danger)' }}><Trash2 size={12} /></button>
             </div>
           ))}
 
-          {/* New IP rows */}
           {ips.map((ip, i) => (
             <div key={i} className="grid grid-cols-[1fr_auto_1fr_auto] gap-2 mb-2 items-end">
               <div>
@@ -250,20 +238,16 @@ export default function ServerFormPage() {
                 <input value={ip.rdns} onChange={(e) => updateIpRow(i, 'rdns', e.target.value)}
                   placeholder="srv1.example.com" className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
               </div>
-              <button type="button" onClick={() => removeIpRow(i)}
-                className="p-2 rounded-lg hover:bg-white/5 mb-0.5" style={{ color: 'var(--color-danger)' }}>
-                <Trash2 size={14} />
-              </button>
+              <button type="button" onClick={() => removeIpRow(i)} className="p-2 rounded-lg hover:bg-white/5 mb-0.5" style={{ color: 'var(--color-danger)' }}><Trash2 size={14} /></button>
             </div>
           ))}
 
-          {ips.length === 0 && existingIps.length === 0 && (
-            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
-          )}
+          {ips.length === 0 && existingIps.length === 0 && <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>}
         </div>
 
         <hr style={{ borderColor: 'var(--color-border)' }} />
 
+        {/* SSH */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field name="ssh_user" label={t('ssh_user')} value={form.ssh_user} onChange={handleChange} />
           <Field name="ssh_port" label={t('ssh_port')} value={form.ssh_port} onChange={handleChange} type="number" />
@@ -271,6 +255,103 @@ export default function ServerFormPage() {
         <Field name="ssh_public_key" label={t('ssh_public_key')} value={form.ssh_public_key} onChange={handleChange} />
         <Field name="ssh_host_key" label={t('ssh_host_key')} value={form.ssh_host_key} onChange={handleChange} />
 
+        <hr style={{ borderColor: 'var(--color-border)' }} />
+
+        {/* Contract section (collapsible) */}
+        <div>
+          <button type="button" onClick={() => setShowContract(!showContract)}
+            className="flex items-center gap-2 text-sm font-semibold w-full hover:bg-white/5 px-2 py-2 -mx-2 rounded-lg transition-colors">
+            <FileText size={16} style={{ color: '#f59e0b' }} />
+            {t('contracts:title')}
+            {showContract ? <ChevronDown size={14} className="ml-auto" /> : <ChevronRight size={14} className="ml-auto" />}
+          </button>
+
+          {showContract && (
+            <div className="space-y-4 mt-3 animate-fade-in">
+              <Field name="contract_number" label={t('contracts:contract_number')} value={form.contract_number} onChange={handleChange} />
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:monthly_cost')}</label>
+                  <input name="monthly_cost" type="text" inputMode="decimal" value={form.monthly_cost} onChange={handleChange}
+                    placeholder="0.00" className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:regular_cost')}</label>
+                  <input name="regular_cost" type="text" inputMode="decimal" value={form.regular_cost} onChange={handleChange}
+                    placeholder="0.00" className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:billing_cycle')}</label>
+                  <select name="billing_cycle" value={form.billing_cycle || ''} onChange={handleChange}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle}>
+                    <option value="">—</option>
+                    <option value="hourly">Hourly</option>
+                    <option value="monthly">Monthly</option>
+                    <option value="quarterly">Quarterly</option>
+                    <option value="semi-annual">Semi-Annual</option>
+                    <option value="yearly">Yearly</option>
+                    <option value="biennial">Biennial</option>
+                    <option value="prepaid">Prepaid</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field name="contract_start_date" label={t('contracts:start_date')} value={form.contract_start_date} onChange={handleChange} type="date" />
+                <Field name="contract_end_date" label={t('contracts:end_date')} value={form.contract_end_date} onChange={handleChange} type="date" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_period')}</label>
+                <select name="contract_period" value={form.contract_period || ''} onChange={handleChange}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle}>
+                  <option value="">—</option>
+                  <option value="1 month">1 Month</option>
+                  <option value="3 months">3 Months</option>
+                  <option value="6 months">6 Months</option>
+                  <option value="12 months">12 Months</option>
+                  <option value="24 months">24 Months</option>
+                  <option value="36 months">36 Months</option>
+                </select>
+              </div>
+
+              <div className="flex items-center gap-6">
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" name="promo_price" checked={form.promo_price} onChange={handleChange} className="w-4 h-4 rounded" />
+                  {t('contracts:promo_price')}
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" name="auto_renew" checked={form.auto_renew} onChange={handleChange} className="w-4 h-4 rounded" />
+                  {t('contracts:auto_renew')}
+                </label>
+                <label className="flex items-center gap-2 text-sm cursor-pointer">
+                  <input type="checkbox" name="is_cancelled" checked={form.is_cancelled} onChange={handleChange} className="w-4 h-4 rounded" />
+                  {t('contracts:is_cancelled')}
+                </label>
+              </div>
+
+              {form.promo_price && (
+                <Field name="promo_end_date" label={t('contracts:promo_end_date')} value={form.promo_end_date} onChange={handleChange} type="date" />
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <Field name="cancellation_period_days" label={t('contracts:cancellation_period')} value={form.cancellation_period_days} onChange={handleChange} type="number" />
+                <Field name="next_cancellation_date" label={t('contracts:next_cancellation')} value={form.next_cancellation_date} onChange={handleChange} type="date" />
+              </div>
+
+              <div>
+                <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:notes')}</label>
+                <textarea name="contract_notes" value={form.contract_notes || ''} onChange={handleChange} rows={2}
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 resize-y" style={inputStyle} />
+              </div>
+            </div>
+          )}
+        </div>
+
+        <hr style={{ borderColor: 'var(--color-border)' }} />
+
+        {/* Notes */}
         <div>
           <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('notes')}</label>
           <textarea name="notes" value={form.notes || ''} onChange={handleChange} rows={3}

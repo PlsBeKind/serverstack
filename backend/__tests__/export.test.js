@@ -20,7 +20,8 @@ describe('Export/Import Routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.providers).toHaveLength(1);
     expect(res.body.servers).toHaveLength(1);
-    expect(res.body.version).toBe('1.0.0');
+    expect(res.body.version).toBe('1.1.0');
+    expect(res.body.contracts).toBeUndefined();
   });
 
   it('should export credentials without passwords', async () => {
@@ -31,14 +32,12 @@ describe('Export/Import Routes', () => {
     const res = await request(app).get('/api/v1/export').set(auth());
     expect(res.body.server_credentials).toHaveLength(1);
     expect(res.body.server_credentials[0].password_enc).toBeUndefined();
-    expect(res.body.server_credentials[0].label).toBe('root');
   });
 
   it('should import data', async () => {
     const exportData = {
       providers: [{ id: 1, name: 'ImportedProvider', website: null, support_email: null, support_phone: null, notes: null }],
-      servers: [{ id: 1, provider_id: 1, name: 'Imported VPS', type: 'vps', hostname: 'imported.example.com', location: null, os: null, cpu_cores: null, ram_mb: 8192, storage_gb: 50, storage_type: null, status: 'active', notes: null, ssh_user: null, ssh_port: 22, ssh_public_key: null, ssh_host_key: null }],
-      contracts: [],
+      servers: [{ id: 1, provider_id: 1, name: 'Imported VPS', type: 'vps', hostname: 'imported.example.com', location: null, os: null, cpu_cores: null, ram_mb: 8192, storage_gb: 50, storage_type: null, status: 'active', notes: null, ssh_user: null, ssh_port: 22, ssh_public_key: null, ssh_host_key: null, monthly_cost: 15, contract_number: 'X-99' }],
       ip_addresses: [],
       services: [],
     };

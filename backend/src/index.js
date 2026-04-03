@@ -8,7 +8,6 @@ import { authMiddleware } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
 import providerRoutes from './routes/providers.js';
 import serverRoutes from './routes/servers.js';
-import contractRoutes from './routes/contracts.js';
 import ipRoutes from './routes/ips.js';
 import serviceRoutes from './routes/services.js';
 import dashboardRoutes from './routes/dashboard.js';
@@ -33,7 +32,6 @@ async function start() {
   // Protected routes
   app.use('/api/v1/providers', authMiddleware, providerRoutes(db));
   app.use('/api/v1/servers', authMiddleware, serverRoutes(db));
-  app.use('/api/v1/contracts', authMiddleware, contractRoutes(db));
   app.use('/api/v1/ips', authMiddleware, ipRoutes(db));
   app.use('/api/v1/services', authMiddleware, serviceRoutes(db));
   app.use('/api/v1/dashboard', authMiddleware, dashboardRoutes(db));
