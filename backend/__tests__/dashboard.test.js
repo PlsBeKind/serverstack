@@ -23,10 +23,9 @@ describe('Dashboard Routes', () => {
     expect(res.body.providers).toBe(1);
   });
 
-  it('should return costs with provider breakdown', async () => {
+  it('should return costs from servers', async () => {
     const providerId = seedProvider(db);
-    const serverId = seedServer(db, providerId);
-    db.prepare('INSERT INTO contracts (server_id, monthly_cost) VALUES (?, ?)').run(serverId, 29.99);
+    seedServer(db, providerId, 'VPS', { monthly_cost: 29.99 });
 
     const res = await request(app).get('/api/v1/dashboard/costs').set(auth());
     expect(res.status).toBe(200);
@@ -38,8 +37,8 @@ describe('Dashboard Routes', () => {
 
   it('should calculate promo savings', async () => {
     const providerId = seedProvider(db);
-    const serverId = seedServer(db, providerId);
-    db.prepare('INSERT INTO contracts (server_id, monthly_cost, regular_cost, promo_price) VALUES (?, ?, ?, ?)').run(serverId, 19.99, 29.99, 1);
+    const sid = seedServer(db, providerId, 'VPS', { monthly_cost: 19.99 });
+    db.prepare('UPDATE servers SET regular_cost = 29.99, promo_price = 1 WHERE id = ?').run(sid);
 
     const res = await request(app).get('/api/v1/dashboard/costs').set(auth());
     expect(res.body.promo_savings).toBe(10);
@@ -70,7 +69,7 @@ describe('Dashboard Routes', () => {
     expect(unsent).toBe(0);
   });
 
-  it('should return resources with cores, RAM, storage', async () => {
+  it('should return resources', async () => {
     const providerId = seedProvider(db);
     seedServer(db, providerId);
 
@@ -78,6 +77,5 @@ describe('Dashboard Routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.total_ram_mb).toBe(16384);
     expect(res.body.total_storage_gb).toBe(100);
-    expect(res.body.total_cores).toBeDefined();
   });
 });

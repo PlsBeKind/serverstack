@@ -17,6 +17,19 @@ export default function serverRoutes(db) {
     res.json(servers);
   });
 
+  router.get('/expiring', (req, res) => {
+    const days = parseInt(req.query.days) || 30;
+    const servers = db.prepare(`
+      SELECT s.*, p.name as provider_name
+      FROM servers s
+      LEFT JOIN providers p ON s.provider_id = p.id
+      WHERE s.next_cancellation_date IS NOT NULL
+        AND date(s.next_cancellation_date) <= date('now', '+' || ? || ' days')
+      ORDER BY s.next_cancellation_date
+    `).all(days);
+    res.json(servers);
+  });
+
   router.get('/:id', (req, res) => {
     const server = db.prepare(`
       SELECT s.*, p.name as provider_name
@@ -92,13 +105,17 @@ export default function serverRoutes(db) {
     res.status(204).end();
   });
 
-  // --- Server CRUD ---
+  // --- Server CRUD (includes contract fields) ---
 
   router.post('/', (req, res) => {
     const {
       provider_id, name, type, hostname, location, os,
       cpu_cores, ram_mb, storage_gb, storage_type, status, notes,
-      ssh_user, ssh_port, ssh_public_key, ssh_host_key
+      ssh_user, ssh_port, ssh_public_key, ssh_host_key,
+      contract_number, monthly_cost, regular_cost, billing_cycle,
+      contract_start_date, contract_end_date, cancellation_period_days,
+      next_cancellation_date, auto_renew, promo_price, promo_end_date,
+      contract_period, is_cancelled, contract_notes
     } = req.body;
 
     if (!provider_id || !name) {
@@ -109,13 +126,26 @@ export default function serverRoutes(db) {
     if (!provider) return res.status(400).json({ error: 'servers.invalid_provider' });
 
     const result = db.prepare(`
-      INSERT INTO servers (provider_id, name, type, hostname, location, os, cpu_cores, ram_mb, storage_gb, storage_type, status, notes, ssh_user, ssh_port, ssh_public_key, ssh_host_key)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO servers (
+        provider_id, name, type, hostname, location, os,
+        cpu_cores, ram_mb, storage_gb, storage_type, status, notes,
+        ssh_user, ssh_port, ssh_public_key, ssh_host_key,
+        contract_number, monthly_cost, regular_cost, billing_cycle,
+        contract_start_date, contract_end_date, cancellation_period_days,
+        next_cancellation_date, auto_renew, promo_price, promo_end_date,
+        contract_period, is_cancelled, contract_notes
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       provider_id, name, type || null, hostname || null, location || null, os || null,
       cpu_cores || null, ram_mb || null, storage_gb || null, storage_type || null,
       status || 'active', notes || null,
-      ssh_user || null, ssh_port || 22, ssh_public_key || null, ssh_host_key || null
+      ssh_user || null, ssh_port || 22, ssh_public_key || null, ssh_host_key || null,
+      contract_number || null, monthly_cost || 0, regular_cost || null,
+      billing_cycle || null, contract_start_date || null, contract_end_date || null,
+      cancellation_period_days || 30, next_cancellation_date || null,
+      auto_renew !== undefined ? (auto_renew ? 1 : 0) : 1,
+      promo_price ? 1 : 0, promo_end_date || null,
+      contract_period || null, is_cancelled ? 1 : 0, contract_notes || null
     );
 
     const server = db.prepare('SELECT * FROM servers WHERE id = ?').get(result.lastInsertRowid);
@@ -129,7 +159,11 @@ export default function serverRoutes(db) {
     const {
       provider_id, name, type, hostname, location, os,
       cpu_cores, ram_mb, storage_gb, storage_type, status, notes,
-      ssh_user, ssh_port, ssh_public_key, ssh_host_key
+      ssh_user, ssh_port, ssh_public_key, ssh_host_key,
+      contract_number, monthly_cost, regular_cost, billing_cycle,
+      contract_start_date, contract_end_date, cancellation_period_days,
+      next_cancellation_date, auto_renew, promo_price, promo_end_date,
+      contract_period, is_cancelled, contract_notes
     } = req.body;
 
     db.prepare(`
@@ -138,6 +172,10 @@ export default function serverRoutes(db) {
         cpu_cores = ?, ram_mb = ?, storage_gb = ?, storage_type = ?,
         status = ?, notes = ?,
         ssh_user = ?, ssh_port = ?, ssh_public_key = ?, ssh_host_key = ?,
+        contract_number = ?, monthly_cost = ?, regular_cost = ?, billing_cycle = ?,
+        contract_start_date = ?, contract_end_date = ?, cancellation_period_days = ?,
+        next_cancellation_date = ?, auto_renew = ?, promo_price = ?, promo_end_date = ?,
+        contract_period = ?, is_cancelled = ?, contract_notes = ?,
         updated_at = datetime('now')
       WHERE id = ?
     `).run(
@@ -149,6 +187,20 @@ export default function serverRoutes(db) {
       status ?? existing.status, notes ?? existing.notes,
       ssh_user ?? existing.ssh_user, ssh_port ?? existing.ssh_port,
       ssh_public_key ?? existing.ssh_public_key, ssh_host_key ?? existing.ssh_host_key,
+      contract_number ?? existing.contract_number,
+      monthly_cost ?? existing.monthly_cost,
+      regular_cost ?? existing.regular_cost,
+      billing_cycle ?? existing.billing_cycle,
+      contract_start_date ?? existing.contract_start_date,
+      contract_end_date ?? existing.contract_end_date,
+      cancellation_period_days ?? existing.cancellation_period_days,
+      next_cancellation_date ?? existing.next_cancellation_date,
+      auto_renew !== undefined ? (auto_renew ? 1 : 0) : existing.auto_renew,
+      promo_price !== undefined ? (promo_price ? 1 : 0) : existing.promo_price,
+      promo_end_date ?? existing.promo_end_date,
+      contract_period ?? existing.contract_period,
+      is_cancelled !== undefined ? (is_cancelled ? 1 : 0) : existing.is_cancelled,
+      contract_notes ?? existing.contract_notes,
       req.params.id
     );
 

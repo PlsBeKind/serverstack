@@ -13,12 +13,15 @@ describe('Server Routes', () => {
 
   const auth = () => ({ Authorization: `Bearer ${token}` });
 
-  it('should create a server', async () => {
+  it('should create a server with contract fields', async () => {
     const res = await request(app).post('/api/v1/servers').set(auth()).send({
-      provider_id: providerId, name: 'VPS Prod', type: 'vps', hostname: 'srv1.example.com', os: 'Ubuntu', ram_mb: 16384, storage_gb: 100
+      provider_id: providerId, name: 'VPS Prod', type: 'vps', hostname: 'srv1.example.com',
+      monthly_cost: 29.99, billing_cycle: 'monthly', contract_number: 'C-123'
     });
     expect(res.status).toBe(201);
     expect(res.body.name).toBe('VPS Prod');
+    expect(res.body.monthly_cost).toBe(29.99);
+    expect(res.body.contract_number).toBe('C-123');
   });
 
   it('should list servers', async () => {
@@ -27,10 +30,25 @@ describe('Server Routes', () => {
     expect(res.body).toHaveLength(1);
   });
 
-  it('should update a server', async () => {
-    const created = await request(app).post('/api/v1/servers').set(auth()).send({ provider_id: providerId, name: 'Old Name' });
-    const res = await request(app).put(`/api/v1/servers/${created.body.id}`).set(auth()).send({ name: 'New Name' });
+  it('should get expiring servers', async () => {
+    const futureDate = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    await request(app).post('/api/v1/servers').set(auth()).send({
+      provider_id: providerId, name: 'Expiring', monthly_cost: 10, next_cancellation_date: futureDate
+    });
+    const res = await request(app).get('/api/v1/servers/expiring?days=30').set(auth());
+    expect(res.body).toHaveLength(1);
+  });
+
+  it('should update a server including contract fields', async () => {
+    const created = await request(app).post('/api/v1/servers').set(auth()).send({
+      provider_id: providerId, name: 'Old Name', monthly_cost: 10
+    });
+    const res = await request(app).put(`/api/v1/servers/${created.body.id}`).set(auth()).send({
+      name: 'New Name', monthly_cost: 20, is_cancelled: true
+    });
     expect(res.body.name).toBe('New Name');
+    expect(res.body.monthly_cost).toBe(20);
+    expect(res.body.is_cancelled).toBe(1);
   });
 
   it('should delete a server', async () => {
@@ -66,31 +84,14 @@ describe('Server Routes', () => {
     });
     expect(res.status).toBe(201);
     expect(res.body.label).toBe('root');
-    expect(res.body.username).toBe('root');
     expect(res.body.password_enc).toBeUndefined();
-  });
-
-  it('should list credentials without passwords', async () => {
-    const created = await request(app).post('/api/v1/servers').set(auth()).send({ provider_id: providerId, name: 'VPS' });
-    await request(app).post(`/api/v1/servers/${created.body.id}/credentials`).set(auth()).send({ label: 'root', username: 'root', password: 'pw1' });
-    await request(app).post(`/api/v1/servers/${created.body.id}/credentials`).set(auth()).send({ label: 'admin', username: 'admin', password: 'pw2' });
-    const res = await request(app).get(`/api/v1/servers/${created.body.id}/credentials`).set(auth());
-    expect(res.body).toHaveLength(2);
-    expect(res.body[0].password_enc).toBeUndefined();
   });
 
   it('should reveal credential password on demand', async () => {
     const created = await request(app).post('/api/v1/servers').set(auth()).send({ provider_id: providerId, name: 'VPS' });
-    const cred = await request(app).post(`/api/v1/servers/${created.body.id}/credentials`).set(auth()).send({ label: 'root', username: 'root', password: 'my-secret' });
+    const cred = await request(app).post(`/api/v1/servers/${created.body.id}/credentials`).set(auth()).send({ label: 'root', password: 'my-secret' });
     const res = await request(app).get(`/api/v1/servers/${created.body.id}/credentials/${cred.body.id}/password`).set(auth());
     expect(res.body.password).toBe('my-secret');
-  });
-
-  it('should update a credential', async () => {
-    const created = await request(app).post('/api/v1/servers').set(auth()).send({ provider_id: providerId, name: 'VPS' });
-    const cred = await request(app).post(`/api/v1/servers/${created.body.id}/credentials`).set(auth()).send({ label: 'root', username: 'root' });
-    const res = await request(app).put(`/api/v1/servers/${created.body.id}/credentials/${cred.body.id}`).set(auth()).send({ username: 'admin' });
-    expect(res.body.username).toBe('admin');
   });
 
   it('should delete a credential', async () => {

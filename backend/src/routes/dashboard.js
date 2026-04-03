@@ -10,34 +10,32 @@ export default function dashboardRoutes(db) {
     const serverCount = db.prepare('SELECT COUNT(*) as count FROM servers').get().count;
     const activeServers = db.prepare("SELECT COUNT(*) as count FROM servers WHERE status = 'active'").get().count;
     const providerCount = db.prepare('SELECT COUNT(*) as count FROM providers').get().count;
-    const contractCount = db.prepare('SELECT COUNT(*) as count FROM contracts').get().count;
     const serviceCount = db.prepare('SELECT COUNT(*) as count FROM services').get().count;
     const pendingAlerts = db.prepare('SELECT COUNT(*) as count FROM alerts WHERE sent = 0').get().count;
 
     res.json({
       servers: { total: serverCount, active: activeServers },
       providers: providerCount,
-      contracts: contractCount,
       services: serviceCount,
       pending_alerts: pendingAlerts,
     });
   });
 
   router.get('/costs', (req, res) => {
-    const totalMonthlyCost = db.prepare('SELECT COALESCE(SUM(monthly_cost), 0) as total FROM contracts').get().total;
+    const totalMonthlyCost = db.prepare('SELECT COALESCE(SUM(monthly_cost), 0) as total FROM servers WHERE monthly_cost > 0').get().total;
 
     const costByProvider = db.prepare(`
-      SELECT p.name, COALESCE(SUM(c.monthly_cost), 0) as total
-      FROM contracts c
-      JOIN servers s ON c.server_id = s.id
+      SELECT p.name, COALESCE(SUM(s.monthly_cost), 0) as total
+      FROM servers s
       JOIN providers p ON s.provider_id = p.id
+      WHERE s.monthly_cost > 0
       GROUP BY p.id, p.name
       ORDER BY total DESC
     `).all();
 
     const promoSavings = db.prepare(`
       SELECT COALESCE(SUM(regular_cost - monthly_cost), 0) as savings
-      FROM contracts
+      FROM servers
       WHERE promo_price = 1 AND regular_cost IS NOT NULL
     `).get().savings;
 
@@ -53,8 +51,7 @@ export default function dashboardRoutes(db) {
     const alerts = db.prepare(`
       SELECT a.*, s.name as server_name
       FROM alerts a
-      LEFT JOIN contracts c ON a.contract_id = c.id
-      LEFT JOIN servers s ON c.server_id = s.id
+      LEFT JOIN servers s ON a.server_id = s.id
       ORDER BY a.created_at DESC
       LIMIT 50
     `).all();

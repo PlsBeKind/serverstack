@@ -4,7 +4,6 @@ import { authMiddleware } from '../src/middleware/auth.js';
 import authRoutes from '../src/routes/auth.js';
 import providerRoutes from '../src/routes/providers.js';
 import serverRoutes from '../src/routes/servers.js';
-import contractRoutes from '../src/routes/contracts.js';
 import ipRoutes from '../src/routes/ips.js';
 import serviceRoutes from '../src/routes/services.js';
 import dashboardRoutes from '../src/routes/dashboard.js';
@@ -24,7 +23,6 @@ export async function createTestApp() {
   app.use('/api/v1/auth', authRoutes(db));
   app.use('/api/v1/providers', authMiddleware, providerRoutes(db));
   app.use('/api/v1/servers', authMiddleware, serverRoutes(db));
-  app.use('/api/v1/contracts', authMiddleware, contractRoutes(db));
   app.use('/api/v1/ips', authMiddleware, ipRoutes(db));
   app.use('/api/v1/services', authMiddleware, serviceRoutes(db));
   app.use('/api/v1/dashboard', authMiddleware, dashboardRoutes(db));
@@ -54,9 +52,9 @@ export function seedProvider(db, name = 'Hetzner') {
 /**
  * Seed a server and return its ID.
  */
-export function seedServer(db, providerId, name = 'VPS Prod') {
+export function seedServer(db, providerId, name = 'VPS Prod', opts = {}) {
   const result = db.prepare(
-    'INSERT INTO servers (provider_id, name, hostname, os, ram_mb, storage_gb, status) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(providerId, name, 'srv1.example.com', 'Ubuntu 22.04', 16384, 100, 'active');
+    'INSERT INTO servers (provider_id, name, hostname, os, ram_mb, storage_gb, status, monthly_cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+  ).run(providerId, name, 'srv1.example.com', 'Ubuntu 22.04', 16384, 100, 'active', opts.monthly_cost || 0);
   return result.lastInsertRowid;
 }

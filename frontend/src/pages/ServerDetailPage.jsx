@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, Plus, X } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, Plus, X, FileText } from 'lucide-react';
+import CostBadge from '../components/CostBadge.jsx';
 import { api } from '../api/client.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 
@@ -92,6 +93,51 @@ export default function ServerDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Contract info */}
+      {(server.monthly_cost > 0 || server.contract_number || server.contract_start_date) && (
+        <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <h3 className="flex items-center gap-2 text-sm font-semibold mb-4"><FileText size={16} style={{ color: '#f59e0b' }} /> {t('contracts:title', 'Contract')}</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+            {server.monthly_cost > 0 && (
+              <div>
+                <p className="text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:monthly_cost')}</p>
+                <CostBadge amount={server.monthly_cost} promo={!!server.promo_price} />
+              </div>
+            )}
+            {server.regular_cost && (
+              <div>
+                <p className="text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:regular_cost')}</p>
+                <CostBadge amount={server.regular_cost} />
+              </div>
+            )}
+            {server.billing_cycle && (
+              <div>
+                <p className="text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:billing_cycle')}</p>
+                <p className="text-sm capitalize">{server.billing_cycle}</p>
+              </div>
+            )}
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-3">
+            {server.contract_number && (
+              <div><p className="text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_number')}</p><p className="text-sm font-mono">{server.contract_number}</p></div>
+            )}
+            {server.contract_period && (
+              <div><p className="text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_period')}</p><p className="text-sm">{server.contract_period}</p></div>
+            )}
+            {server.contract_start_date && (
+              <div><p className="text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:start_date')}</p><p className="text-sm">{server.contract_start_date}</p></div>
+            )}
+            {server.next_cancellation_date && (
+              <div><p className="text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_cancellation')}</p><p className="text-sm">{server.next_cancellation_date}</p></div>
+            )}
+          </div>
+          <div className="flex gap-3 mt-3">
+            {server.is_cancelled ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>{t('contracts:is_cancelled')}</span> : null}
+            {server.auto_renew ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#064e3b', color: '#10b981' }}>{t('contracts:auto_renew')}</span> : null}
+          </div>
+        </div>
+      )}
 
       {/* Credentials */}
       <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
