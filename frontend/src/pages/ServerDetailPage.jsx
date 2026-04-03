@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText, Tag } from 'lucide-react';
 import CostBadge from '../components/CostBadge.jsx';
+import TagPill from '../components/TagPill.jsx';
 import { api } from '../api/client.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 
@@ -16,12 +17,13 @@ export default function ServerDetailPage() {
   const [disks, setDisks] = useState([]);
   const [credentials, setCredentials] = useState([]);
   const [revealedPws, setRevealedPws] = useState({});
+  const [allTags, setAllTags] = useState([]);
   const [showCredForm, setShowCredForm] = useState(false);
   const [credForm, setCredForm] = useState({ label: '', username: '', password: '', notes: '' });
 
   const loadData = () => {
-    Promise.all([api.getServer(id), api.getServerServices(id), api.getServerIps(id), api.getServerDisks(id), api.getServerCredentials(id)])
-      .then(([s, svc, ipList, diskList, creds]) => { setServer(s); setServices(svc); setIps(ipList); setDisks(diskList); setCredentials(creds); });
+    Promise.all([api.getServer(id), api.getServerServices(id), api.getServerIps(id), api.getServerDisks(id), api.getServerCredentials(id), api.getTags()])
+      .then(([s, svc, ipList, diskList, creds, tags]) => { setServer(s); setServices(svc); setIps(ipList); setDisks(diskList); setCredentials(creds); setAllTags(tags); });
   };
 
   useEffect(() => { loadData(); }, [id]);
@@ -91,6 +93,28 @@ export default function ServerDetailPage() {
             <p className="text-sm whitespace-pre-wrap">{server.notes}</p>
           </div>
         )}
+      </div>
+
+      {/* Tags */}
+      <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+        <h3 className="flex items-center gap-2 text-sm font-semibold mb-3"><Tag size={16} style={{ color: 'var(--color-primary)' }} /> {t('tags')}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          {server.tags?.map(tag => (
+            <TagPill key={tag.id} tag={tag} onRemove={async (tagId) => { await api.removeTag(id, tagId); loadData(); }} />
+          ))}
+          {(() => {
+            const assignedIds = new Set(server.tags?.map(t => t.id) || []);
+            const available = allTags.filter(t => !assignedIds.has(t.id));
+            if (available.length === 0) return null;
+            return (
+              <select onChange={async (e) => { if (e.target.value) { await api.assignTag(id, Number(e.target.value)); loadData(); e.target.value = ''; } }}
+                className="px-2 py-1 rounded-lg text-xs outline-none" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
+                <option value="">+ {t('add_tag')}</option>
+                {available.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Contract info */}

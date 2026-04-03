@@ -7,14 +7,40 @@ import { encrypt, decrypt } from '../utils/crypto.js';
 export default function serverRoutes(db) {
   const router = Router();
 
+  /** Attach tags array to a server object */
+  function attachTags(server) {
+    const tags = db.prepare(`
+      SELECT t.* FROM tags t
+      JOIN server_tags st ON st.tag_id = t.id
+      WHERE st.server_id = ?
+    `).all(server.id);
+    return { ...server, tags };
+  }
+
   router.get('/', (req, res) => {
-    const servers = db.prepare(`
-      SELECT s.*, p.name as provider_name
-      FROM servers s
-      LEFT JOIN providers p ON s.provider_id = p.id
-      ORDER BY s.name
-    `).all();
-    res.json(servers);
+    const tagFilter = req.query.tag;
+
+    let servers;
+    if (tagFilter) {
+      servers = db.prepare(`
+        SELECT DISTINCT s.*, p.name as provider_name
+        FROM servers s
+        LEFT JOIN providers p ON s.provider_id = p.id
+        JOIN server_tags st ON st.server_id = s.id
+        JOIN tags t ON t.id = st.tag_id
+        WHERE t.name = ?
+        ORDER BY s.name
+      `).all(tagFilter);
+    } else {
+      servers = db.prepare(`
+        SELECT s.*, p.name as provider_name
+        FROM servers s
+        LEFT JOIN providers p ON s.provider_id = p.id
+        ORDER BY s.name
+      `).all();
+    }
+
+    res.json(servers.map(attachTags));
   });
 
   router.get('/expiring', (req, res) => {
@@ -38,7 +64,7 @@ export default function serverRoutes(db) {
       WHERE s.id = ?
     `).get(req.params.id);
     if (!server) return res.status(404).json({ error: 'servers.not_found' });
-    res.json(server);
+    res.json(attachTags(server));
   });
 
   router.get('/:id/services', (req, res) => {
@@ -49,6 +75,39 @@ export default function serverRoutes(db) {
   router.get('/:id/ips', (req, res) => {
     const ips = db.prepare('SELECT * FROM ip_addresses WHERE server_id = ?').all(req.params.id);
     res.json(ips);
+  });
+
+  // --- Tag assignment routes ---
+
+  router.post('/:id/tags', (req, res) => {
+    const { tag_id } = req.body;
+    if (!tag_id) return res.status(400).json({ error: 'tags.tag_id_required' });
+
+    const server = db.prepare('SELECT id FROM servers WHERE id = ?').get(req.params.id);
+    if (!server) return res.status(404).json({ error: 'servers.not_found' });
+
+    const tag = db.prepare('SELECT id FROM tags WHERE id = ?').get(tag_id);
+    if (!tag) return res.status(404).json({ error: 'tags.not_found' });
+
+    try {
+      db.prepare('INSERT INTO server_tags (server_id, tag_id) VALUES (?, ?)').run(req.params.id, tag_id);
+    } catch (err) {
+      if (err.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+        return res.status(409).json({ error: 'tags.already_assigned' });
+      }
+      throw err;
+    }
+
+    const tags = db.prepare('SELECT t.* FROM tags t JOIN server_tags st ON st.tag_id = t.id WHERE st.server_id = ?').all(req.params.id);
+    res.status(201).json(tags);
+  });
+
+  router.delete('/:id/tags/:tagId', (req, res) => {
+    const existing = db.prepare('SELECT * FROM server_tags WHERE server_id = ? AND tag_id = ?').get(req.params.id, req.params.tagId);
+    if (!existing) return res.status(404).json({ error: 'tags.not_assigned' });
+
+    db.prepare('DELETE FROM server_tags WHERE server_id = ? AND tag_id = ?').run(req.params.id, req.params.tagId);
+    res.status(204).end();
   });
 
   // --- Disk sub-routes ---

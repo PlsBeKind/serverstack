@@ -71,6 +71,13 @@ export const api = {
   updateService: (id, data) => http.put(`/services/${id}`, data).then(r => r.data),
   deleteService: (id) => http.delete(`/services/${id}`),
 
+  // Tags
+  getTags: () => http.get('/tags').then(r => r.data),
+  createTag: (data) => http.post('/tags', data).then(r => r.data),
+  deleteTag: (id) => http.delete(`/tags/${id}`),
+  assignTag: (serverId, tagId) => http.post(`/servers/${serverId}/tags`, { tag_id: tagId }).then(r => r.data),
+  removeTag: (serverId, tagId) => http.delete(`/servers/${serverId}/tags/${tagId}`),
+
   // Dashboard
   getSummary: () => http.get('/dashboard/summary').then(r => r.data),
   getUpcomingBilling: (days = 30) => http.get(`/dashboard/upcoming-billing?days=${days}`).then(r => r.data),
