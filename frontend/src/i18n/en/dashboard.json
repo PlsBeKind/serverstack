@@ -19,6 +19,7 @@
   "pending_alerts": "Pending Alerts",
   "mark_all_read": "Mark All Read",
   "upcoming_billing": "Upcoming Billing",
+  "upcoming_events": "Upcoming Events",
   "next_charge": "Next charge",
   "in_days": "in {{count}} days",
   "in_1_day": "tomorrow",

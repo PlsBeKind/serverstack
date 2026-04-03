@@ -136,23 +136,25 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      {/* Upcoming Billing */}
+      {/* Upcoming Events */}
       <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
         <h3 className="flex items-center gap-2 text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>
-          <CalendarClock size={16} style={{ color: '#f59e0b' }} /> {t('upcoming_billing')}
+          <CalendarClock size={16} style={{ color: '#f59e0b' }} /> {t('upcoming_events')}
         </h3>
         {billing.length === 0 ? (
           <p className="text-center py-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('no_upcoming')}</p>
         ) : (
           <div className="space-y-2">
-            {billing.slice(0, 8).map((b, i) => {
+            {billing.map((b, i) => {
+              const isCancelled = b.status === 'cancelled';
               const isExpired = b.status === 'expired';
               const isDueSoon = b.status === 'due_soon';
               const isUnknown = b.status === 'unknown_date';
-              const color = isExpired ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
+              const color = isCancelled ? '#ef4444' : isExpired ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
 
               let timeLabel;
-              if (isExpired) timeLabel = t('expired');
+              if (isCancelled) timeLabel = b.date ? `ends ${b.date}` : t('common:status.cancelled', 'Cancelled');
+              else if (isExpired) timeLabel = t('expired');
               else if (isUnknown) timeLabel = t('date_unknown');
               else if (b.days_until === 0) timeLabel = t('today');
               else if (b.days_until === 1) timeLabel = t('in_1_day');
@@ -169,7 +171,9 @@ export default function DashboardPage() {
                     {b.provider_name && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{b.provider_name}</span>}
                   </div>
                   <div className="flex items-center gap-3">
-                    <CostBadge amount={b.amount} />
+                    {isCancelled
+                      ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>Cancelled</span>
+                      : <CostBadge amount={b.amount} />}
                     <span className="text-xs font-mono" style={{ color }}>{timeLabel}</span>
                   </div>
                 </Link>

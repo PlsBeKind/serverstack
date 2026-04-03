@@ -19,6 +19,7 @@
   "pending_alerts": "Offene Benachrichtigungen",
   "mark_all_read": "Alle als gelesen markieren",
   "upcoming_billing": "Anstehende Abrechnungen",
+  "upcoming_events": "Anstehende Ereignisse",
   "next_charge": "N\u00e4chste Abrechnung",
   "in_days": "in {{count}} Tagen",
   "in_1_day": "morgen",

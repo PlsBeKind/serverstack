@@ -96,8 +96,15 @@ export function getNextBillingDate(server) {
   const cost = server.monthly_cost || 0;
   if (cost <= 0) return null;
 
-  // Cancelled servers have no upcoming billing
-  if (server.is_cancelled) return null;
+  // Cancelled servers: show in widget but as cancelled status, not billing
+  if (server.is_cancelled) {
+    const endDate = server.contract_end_date || server.next_cancellation_date;
+    if (endDate) {
+      const days = daysBetween(today(), parseDate(endDate));
+      return { date: endDate, days_until: days, status: 'cancelled', label: `Cancelled — ends ${endDate}`, amount: 0 };
+    }
+    return { date: null, days_until: null, status: 'cancelled', label: 'Cancelled', amount: 0 };
+  }
 
   const now = today();
   const cycleMonths = getCycleMonths(server.billing_cycle);
