@@ -67,7 +67,6 @@ export default function ServersPage() {
                 <div className="flex gap-4 pt-2">
                   {server.cpu_cores && <span className="font-mono">{server.cpu_cores} {t('cpu_cores')}</span>}
                   {server.ram_mb && <span className="font-mono">{server.ram_mb} MB</span>}
-                  {server.storage_gb && <span className="font-mono">{server.storage_gb} GB</span>}
                 </div>
               </div>
               <div className="mt-3 pt-3 flex items-center gap-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity"

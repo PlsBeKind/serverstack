@@ -20,7 +20,7 @@ describe('Export/Import Routes', () => {
     expect(res.status).toBe(200);
     expect(res.body.providers).toHaveLength(1);
     expect(res.body.servers).toHaveLength(1);
-    expect(res.body.version).toBe('1.1.0');
+    expect(res.body.version).toBe('1.2.0');
     expect(res.body.contracts).toBeUndefined();
   });
 

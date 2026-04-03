@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, Plus, X, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText } from 'lucide-react';
 import CostBadge from '../components/CostBadge.jsx';
 import { api } from '../api/client.js';
 import StatusBadge from '../components/StatusBadge.jsx';
@@ -13,14 +13,15 @@ export default function ServerDetailPage() {
   const [server, setServer] = useState(null);
   const [services, setServices] = useState([]);
   const [ips, setIps] = useState([]);
+  const [disks, setDisks] = useState([]);
   const [credentials, setCredentials] = useState([]);
   const [revealedPws, setRevealedPws] = useState({});
   const [showCredForm, setShowCredForm] = useState(false);
   const [credForm, setCredForm] = useState({ label: '', username: '', password: '', notes: '' });
 
   const loadData = () => {
-    Promise.all([api.getServer(id), api.getServerServices(id), api.getServerIps(id), api.getServerCredentials(id)])
-      .then(([s, svc, ipList, creds]) => { setServer(s); setServices(svc); setIps(ipList); setCredentials(creds); });
+    Promise.all([api.getServer(id), api.getServerServices(id), api.getServerIps(id), api.getServerDisks(id), api.getServerCredentials(id)])
+      .then(([s, svc, ipList, diskList, creds]) => { setServer(s); setServices(svc); setIps(ipList); setDisks(diskList); setCredentials(creds); });
   };
 
   useEffect(() => { loadData(); }, [id]);
@@ -59,8 +60,6 @@ export default function ServerDetailPage() {
     ['name', server.name], ['type', server.type], ['hostname', server.hostname],
     ['provider', server.provider_name], ['location', server.location], ['os', server.os],
     ['cpu_cores', server.cpu_cores], ['ram_mb', server.ram_mb ? `${server.ram_mb} MB` : null],
-    ['storage_gb', server.storage_gb ? `${server.storage_gb} GB` : null],
-    ['storage_type', server.storage_type],
     ['ssh_user', server.ssh_user], ['ssh_port', server.ssh_port],
   ].filter(([_, v]) => v != null);
 
@@ -135,6 +134,28 @@ export default function ServerDetailPage() {
           <div className="flex gap-3 mt-3">
             {server.is_cancelled ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>{t('contracts:is_cancelled')}</span> : null}
             {server.auto_renew ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#064e3b', color: '#10b981' }}>{t('contracts:auto_renew')}</span> : null}
+          </div>
+        </div>
+      )}
+
+      {/* Disks */}
+      {disks.length > 0 && (
+        <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <h3 className="flex items-center gap-2 text-sm font-semibold mb-4">
+            <HardDrive size={16} style={{ color: '#8b5cf6' }} /> {t('disks')}
+            <span className="ml-auto text-xs font-mono" style={{ color: 'var(--color-text-muted)' }}>
+              {disks.reduce((s, d) => s + (d.size_gb || 0), 0)} GB
+            </span>
+          </h3>
+          <div className="space-y-2">
+            {disks.map(d => (
+              <div key={d.id} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+                {d.label && <span className="font-medium">{d.label}</span>}
+                <span className="font-mono">{d.size_gb} GB</span>
+                <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-text-muted)' }}>{d.type}</span>
+                {d.monthly_cost && <span className="text-xs font-mono" style={{ color: 'var(--color-warning)' }}>+{d.monthly_cost}/mo</span>}
+              </div>
+            ))}
           </div>
         </div>
       )}

@@ -39,9 +39,12 @@ export default function dashboardRoutes(db) {
       WHERE promo_price = 1 AND regular_cost IS NOT NULL
     `).get().savings;
 
+    const extraDiskCosts = db.prepare('SELECT COALESCE(SUM(monthly_cost), 0) as total FROM server_disks WHERE monthly_cost IS NOT NULL').get().total;
+    const totalWithDisks = totalMonthlyCost + extraDiskCosts;
+
     res.json({
-      total_monthly: totalMonthlyCost,
-      total_yearly: totalMonthlyCost * 12,
+      total_monthly: totalWithDisks,
+      total_yearly: totalWithDisks * 12,
       by_provider: costByProvider,
       promo_savings: promoSavings,
     });
@@ -71,7 +74,8 @@ export default function dashboardRoutes(db) {
   router.get('/resources', (req, res) => {
     const totalCores = db.prepare('SELECT COALESCE(SUM(cpu_cores), 0) as total FROM servers').get().total;
     const totalRam = db.prepare('SELECT COALESCE(SUM(ram_mb), 0) as total FROM servers').get().total;
-    const totalStorage = db.prepare('SELECT COALESCE(SUM(storage_gb), 0) as total FROM servers').get().total;
+    const totalStorage = db.prepare('SELECT COALESCE(SUM(size_gb), 0) as total FROM server_disks').get().total;
+    const diskCosts = db.prepare('SELECT COALESCE(SUM(monthly_cost), 0) as total FROM server_disks WHERE monthly_cost IS NOT NULL').get().total;
     const totalIps = db.prepare('SELECT COUNT(*) as count FROM ip_addresses').get().count;
 
     const serversByOs = db.prepare(`
@@ -86,6 +90,7 @@ export default function dashboardRoutes(db) {
       total_cores: totalCores,
       total_ram_mb: totalRam,
       total_storage_gb: totalStorage,
+      disk_monthly_costs: diskCosts,
       total_ips: totalIps,
       by_os: serversByOs,
       by_location: serversByLocation,

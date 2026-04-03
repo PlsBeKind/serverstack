@@ -54,7 +54,7 @@ export function seedProvider(db, name = 'Hetzner') {
  */
 export function seedServer(db, providerId, name = 'VPS Prod', opts = {}) {
   const result = db.prepare(
-    'INSERT INTO servers (provider_id, name, hostname, os, ram_mb, storage_gb, status, monthly_cost) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-  ).run(providerId, name, 'srv1.example.com', 'Ubuntu 22.04', 16384, 100, 'active', opts.monthly_cost || 0);
+    'INSERT INTO servers (provider_id, name, hostname, os, ram_mb, status, monthly_cost) VALUES (?, ?, ?, ?, ?, ?, ?)'
+  ).run(providerId, name, 'srv1.example.com', 'Ubuntu 22.04', 16384, 'active', opts.monthly_cost || 0);
   return result.lastInsertRowid;
 }

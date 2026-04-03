@@ -69,13 +69,15 @@ describe('Dashboard Routes', () => {
     expect(unsent).toBe(0);
   });
 
-  it('should return resources', async () => {
+  it('should return resources with storage from disks', async () => {
     const providerId = seedProvider(db);
-    seedServer(db, providerId);
+    const sid = seedServer(db, providerId);
+    db.prepare('INSERT INTO server_disks (server_id, size_gb, type) VALUES (?, ?, ?)').run(sid, 256, 'nvme');
+    db.prepare('INSERT INTO server_disks (server_id, size_gb, type) VALUES (?, ?, ?)').run(sid, 1000, 'hdd');
 
     const res = await request(app).get('/api/v1/dashboard/resources').set(auth());
     expect(res.status).toBe(200);
     expect(res.body.total_ram_mb).toBe(16384);
-    expect(res.body.total_storage_gb).toBe(100);
+    expect(res.body.total_storage_gb).toBe(1256);
   });
 });
