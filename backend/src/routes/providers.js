@@ -60,5 +60,33 @@ export default function providerRoutes(db) {
     res.status(204).end();
   });
 
+  router.post('/:id/price-surge', (req, res) => {
+    const { percentage, effective_date, reason } = req.body;
+    if (!percentage || !effective_date) {
+      return res.status(400).json({ error: 'providers.surge_missing_fields' });
+    }
+
+    const provider = db.prepare('SELECT * FROM providers WHERE id = ?').get(req.params.id);
+    if (!provider) return res.status(404).json({ error: 'providers.not_found' });
+
+    const pct = parseFloat(String(percentage).replace(',', '.'));
+    if (isNaN(pct) || pct === 0) {
+      return res.status(400).json({ error: 'providers.invalid_percentage' });
+    }
+
+    // Get all servers of this provider with monthly_cost > 0
+    const servers = db.prepare('SELECT id, name, monthly_cost FROM servers WHERE provider_id = ? AND monthly_cost > 0').all(req.params.id);
+
+    const affected = [];
+    for (const server of servers) {
+      const newCost = Math.round(server.monthly_cost * (1 + pct / 100) * 100) / 100;
+      db.prepare("UPDATE servers SET pending_cost = ?, pending_cost_date = ?, pending_cost_reason = ?, updated_at = datetime('now') WHERE id = ?")
+        .run(newCost, effective_date, reason || 'price_increase', server.id);
+      affected.push({ server_id: server.id, server_name: server.name, old_cost: server.monthly_cost, new_cost: newCost });
+    }
+
+    res.json({ provider: provider.name, percentage: pct, effective_date, affected_servers: affected.length, servers: affected });
+  });
+
   return router;
 }

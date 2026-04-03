@@ -58,6 +58,14 @@
     "en": "English",
     "de": "Deutsch"
   },
+  "providers_page": {
+    "price_surge": "Preisanpassung",
+    "apply_surge": "Preisanpassung anwenden",
+    "percentage": "Prozentsatz",
+    "effective_date": "Wirksam ab",
+    "surge_applied": "Preisanpassung f\u00fcr {{count}} Server geplant",
+    "surge_preview": "Plant eine {{pct}}%-Preis\u00e4nderung f\u00fcr alle Server dieses Anbieters"
+  },
   "settings": {
     "title": "Einstellungen",
     "language": "Sprache",

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Plus, Building2, Pencil, Trash2, X, ExternalLink } from 'lucide-react';
+import { Plus, Building2, Pencil, Trash2, X, ExternalLink, TrendingUp } from 'lucide-react';
 import { api } from '../api/client.js';
 
 export default function ProvidersPage() {
@@ -8,6 +8,9 @@ export default function ProvidersPage() {
   const [providers, setProviders] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [surgeProvider, setSurgeProvider] = useState(null);
+  const [surgeForm, setSurgeForm] = useState({ percentage: '', effective_date: '' });
+  const [surgeResult, setSurgeResult] = useState(null);
   const [form, setForm] = useState({ name: '', website: '', support_email: '', support_phone: '', notes: '' });
   const [error, setError] = useState('');
 
@@ -88,23 +91,70 @@ export default function ProvidersPage() {
       ) : (
         <div className="space-y-3">
           {providers.map(p => (
-            <div key={p.id} className="rounded-xl p-4 flex items-center gap-4 hover-lift"
-              style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
-              <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold"
-                style={{ background: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}>
-                {p.name[0].toUpperCase()}
+            <div key={p.id}>
+              <div className="rounded-xl p-4 flex items-center gap-4 hover-lift"
+                style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', borderRadius: surgeProvider === p.id ? '12px 12px 0 0' : undefined }}>
+                <div className="w-10 h-10 rounded-lg flex items-center justify-center text-sm font-bold"
+                  style={{ background: 'var(--color-primary-muted)', color: 'var(--color-primary)' }}>
+                  {p.name[0].toUpperCase()}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-semibold text-sm">{p.name}</p>
+                  {p.website && (
+                    <a href={p.website} target="_blank" rel="noreferrer"
+                      className="text-xs flex items-center gap-1 hover:underline" style={{ color: 'var(--color-text-muted)' }}>
+                      {p.website} <ExternalLink size={10} />
+                    </a>
+                  )}
+                </div>
+                <button onClick={() => { setSurgeProvider(surgeProvider === p.id ? null : p.id); setSurgeResult(null); setSurgeForm({ percentage: '', effective_date: '' }); }}
+                  className="p-2 rounded-lg hover:bg-white/5" style={{ color: '#f59e0b' }} title={t('providers_page.price_surge')}>
+                  <TrendingUp size={14} />
+                </button>
+                <button onClick={() => handleEdit(p)} className="p-2 rounded-lg hover:bg-white/5" style={{ color: 'var(--color-text-muted)' }}><Pencil size={14} /></button>
+                <button onClick={() => handleDelete(p)} className="p-2 rounded-lg hover:bg-white/5" style={{ color: 'var(--color-danger)' }}><Trash2 size={14} /></button>
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-semibold text-sm">{p.name}</p>
-                {p.website && (
-                  <a href={p.website} target="_blank" rel="noreferrer"
-                    className="text-xs flex items-center gap-1 hover:underline" style={{ color: 'var(--color-text-muted)' }}>
-                    {p.website} <ExternalLink size={10} />
-                  </a>
-                )}
-              </div>
-              <button onClick={() => handleEdit(p)} className="p-2 rounded-lg hover:bg-white/5" style={{ color: 'var(--color-text-muted)' }}><Pencil size={14} /></button>
-              <button onClick={() => handleDelete(p)} className="p-2 rounded-lg hover:bg-white/5" style={{ color: 'var(--color-danger)' }}><Trash2 size={14} /></button>
+
+              {surgeProvider === p.id && (
+                <div className="p-4 animate-fade-in rounded-b-xl" style={{ background: 'var(--color-surface-raised)', borderLeft: '1px solid var(--color-border)', borderRight: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)' }}>
+                  {surgeResult ? (
+                    <div className="space-y-2">
+                      <p className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
+                        {t('providers_page.surge_applied', { count: surgeResult.affected_servers })}
+                      </p>
+                      {surgeResult.servers.map(s => (
+                        <div key={s.server_id} className="flex items-center justify-between px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-surface)' }}>
+                          <span>{s.server_name}</span>
+                          <span className="font-mono" style={{ color: '#f59e0b' }}>€{s.old_cost.toFixed(2)} → €{s.new_cost.toFixed(2)}</span>
+                        </div>
+                      ))}
+                      <button onClick={() => { setSurgeProvider(null); setSurgeResult(null); }}
+                        className="text-xs mt-2 hover:underline" style={{ color: 'var(--color-text-muted)' }}>{t('actions.confirm')}</button>
+                    </div>
+                  ) : (
+                    <div className="flex items-end gap-3">
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('providers_page.percentage')}</label>
+                        <input type="text" inputMode="decimal" value={surgeForm.percentage} onChange={e => setSurgeForm(f => ({ ...f, percentage: e.target.value }))}
+                          placeholder="+18.51" className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono" style={inputStyle} />
+                      </div>
+                      <div className="flex-1">
+                        <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('providers_page.effective_date')}</label>
+                        <input type="date" value={surgeForm.effective_date} onChange={e => setSurgeForm(f => ({ ...f, effective_date: e.target.value }))}
+                          className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                      </div>
+                      <button onClick={async () => {
+                        if (!surgeForm.percentage || !surgeForm.effective_date) return;
+                        const result = await api.applyPriceSurge(p.id, { percentage: surgeForm.percentage, effective_date: surgeForm.effective_date, reason: 'price_increase' });
+                        setSurgeResult(result);
+                      }} className="px-4 py-2 rounded-lg text-sm font-semibold text-white hover:scale-[1.02] transition-all"
+                        style={{ background: '#f59e0b' }}>
+                        {t('providers_page.apply_surge')}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           ))}
         </div>

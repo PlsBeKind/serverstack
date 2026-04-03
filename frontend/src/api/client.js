@@ -38,6 +38,7 @@ export const api = {
   createProvider: (data) => http.post('/providers', data).then(r => r.data),
   updateProvider: (id, data) => http.put(`/providers/${id}`, data).then(r => r.data),
   deleteProvider: (id) => http.delete(`/providers/${id}`),
+  applyPriceSurge: (id, data) => http.post(`/providers/${id}/price-surge`, data).then(r => r.data),
 
   // Servers
   getServers: () => http.get('/servers').then(r => r.data),
