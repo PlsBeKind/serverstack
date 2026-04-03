@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState([]);
   const [resources, setResources] = useState(null);
   const [billing, setBilling] = useState([]);
+  const [eventsLimit, setEventsLimit] = useState(5);
 
   useEffect(() => {
     Promise.all([api.getSummary(), api.getCosts(), api.getAlerts(), api.getResources(), api.getUpcomingBilling()])
@@ -152,14 +153,26 @@ export default function DashboardPage() {
 
       {/* Upcoming Events */}
       <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
-        <h3 className="flex items-center gap-2 text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>
-          <CalendarClock size={16} style={{ color: '#f59e0b' }} /> {t('upcoming_events')}
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+            <CalendarClock size={16} style={{ color: '#f59e0b' }} /> {t('upcoming_events')}
+            {billing.length > 0 && <span className="text-xs font-normal ml-1">({eventsLimit === 0 ? billing.length : Math.min(eventsLimit, billing.length)}/{billing.length})</span>}
+          </h3>
+          {billing.length > 5 && (
+            <select value={eventsLimit} onChange={e => setEventsLimit(Number(e.target.value))}
+              className="text-xs px-2 py-1 rounded outline-none" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={0}>{t('common:actions.all', 'All')}</option>
+            </select>
+          )}
+        </div>
         {billing.length === 0 ? (
           <p className="text-center py-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('no_upcoming')}</p>
         ) : (
           <div className="space-y-2">
-            {billing.map((b, i) => {
+            {(eventsLimit === 0 ? billing : billing.slice(0, eventsLimit)).map((b, i) => {
               const isDone = b.status === 'cancelled';
               const isStillBilled = b.is_cancelled && !isDone;
               const isPriceChange = b.status === 'price_change';

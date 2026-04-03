@@ -44,7 +44,8 @@
     "loading": "Laden...",
     "no_data": "Keine Daten gefunden",
     "export": "Exportieren",
-    "import": "Importieren"
+    "import": "Importieren",
+    "all": "Alle"
   },
   "status": {
     "active": "Aktiv",
