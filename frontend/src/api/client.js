@@ -68,7 +68,10 @@ export const api = {
   deleteIp: (id) => http.delete(`/ips/${id}`),
 
   // Services
-  getServices: () => http.get('/services').then(r => r.data),
+  getServices: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return http.get(`/services${query ? '?' + query : ''}`).then(r => r.data);
+  },
   createService: (data) => http.post('/services', data).then(r => r.data),
   updateService: (id, data) => http.put(`/services/${id}`, data).then(r => r.data),
   deleteService: (id) => http.delete(`/services/${id}`),

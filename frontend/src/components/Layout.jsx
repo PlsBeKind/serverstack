@@ -2,13 +2,14 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-  LayoutDashboard, Server, Building2, FileText, BarChart3,
+  LayoutDashboard, Server, Building2, FileText, BarChart3, Cog,
   Settings, LogOut, Menu, X, ChevronRight
 } from 'lucide-react';
 
 const navItems = [
   { path: '/', icon: LayoutDashboard, labelKey: 'nav.dashboard' },
   { path: '/servers', icon: Server, labelKey: 'nav.servers' },
+  { path: '/services', icon: Cog, labelKey: 'nav.services' },
   { path: '/providers', icon: Building2, labelKey: 'nav.providers' },
   { path: '/contracts', icon: FileText, labelKey: 'nav.contracts' },
   { path: '/costs', icon: BarChart3, labelKey: 'nav.costs' },

@@ -21,6 +21,8 @@ export default function ServerDetailPage() {
   const [costHistory, setCostHistory] = useState([]);
   const [showPriceChange, setShowPriceChange] = useState(false);
   const [priceForm, setPriceForm] = useState({ new_cost: '', reason: 'price_increase' });
+  const [showSvcForm, setShowSvcForm] = useState(false);
+  const [svcForm, setSvcForm] = useState({ name: '', category: '', port: '', url: '', domain: '', protocol: 'tcp', docker: false, notes: '' });
   const [showCredForm, setShowCredForm] = useState(false);
   const [credForm, setCredForm] = useState({ label: '', username: '', password: '', notes: '' });
 
@@ -304,19 +306,84 @@ export default function ServerDetailPage() {
 
       {/* Services */}
       <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
-        <h3 className="flex items-center gap-2 text-sm font-semibold mb-4"><Cog size={16} style={{ color: 'var(--color-primary)' }} /> {t('services')}</h3>
-        {services.length === 0 ? (
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold"><Cog size={16} style={{ color: 'var(--color-primary)' }} /> {t('services')}</h3>
+          <button onClick={() => setShowSvcForm(!showSvcForm)} className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
+            {showSvcForm ? <X size={12} /> : <Plus size={12} />} {showSvcForm ? t('common:actions.cancel') : t('add_service')}
+          </button>
+        </div>
+
+        {showSvcForm && (
+          <div className="mb-4 p-4 rounded-lg space-y-3 animate-fade-in" style={{ background: 'var(--color-surface)' }}>
+            <div className="grid grid-cols-2 gap-3">
+              <input placeholder={t('service_name')} value={svcForm.name} onChange={e => setSvcForm(f => ({ ...f, name: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+              <select value={svcForm.category} onChange={e => setSvcForm(f => ({ ...f, category: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                <option value="">{t('service_category')}</option>
+                <option value="web">{t('category_web')}</option>
+                <option value="database">{t('category_database')}</option>
+                <option value="monitoring">{t('category_monitoring')}</option>
+                <option value="media">{t('category_media')}</option>
+                <option value="other">{t('category_other')}</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <input placeholder={t('service_domain')} value={svcForm.domain} onChange={e => setSvcForm(f => ({ ...f, domain: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none font-mono" style={inputStyle} />
+              <input type="number" placeholder={t('service_port')} value={svcForm.port} onChange={e => setSvcForm(f => ({ ...f, port: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none font-mono" style={inputStyle} />
+              <select value={svcForm.protocol} onChange={e => setSvcForm(f => ({ ...f, protocol: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                <option value="tcp">TCP</option>
+                <option value="udp">UDP</option>
+                <option value="http">HTTP</option>
+                <option value="https">HTTPS</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={svcForm.docker} onChange={e => setSvcForm(f => ({ ...f, docker: e.target.checked }))} className="w-4 h-4 rounded" />
+                {t('service_docker')}
+              </label>
+            </div>
+            <div className="flex justify-end">
+              <button onClick={async () => {
+                if (!svcForm.name) return;
+                await api.createService({ server_id: Number(id), ...svcForm, port: svcForm.port ? Number(svcForm.port) : null });
+                setSvcForm({ name: '', category: '', port: '', url: '', domain: '', protocol: 'tcp', docker: false, notes: '' });
+                setShowSvcForm(false); loadData();
+              }} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:scale-[1.02] transition-all"
+                style={{ background: 'var(--color-primary)' }}>{t('common:actions.save')}</button>
+            </div>
+          </div>
+        )}
+
+        {services.length === 0 && !showSvcForm ? (
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
         ) : (
           <div className="space-y-2">
-            {services.map(svc => (
-              <div key={svc.id} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
-                <span className="font-mono font-medium">{svc.name}</span>
-                {svc.port && <span className="font-mono text-xs" style={{ color: 'var(--color-text-muted)' }}>:{svc.port}</span>}
-                {svc.category && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{svc.category}</span>}
-                <StatusBadge status={svc.status} />
-              </div>
-            ))}
+            {services.map(svc => {
+              const catColors = { web: '#10b981', database: '#3b82f6', monitoring: '#f59e0b', media: '#8b5cf6', other: '#6b7280' };
+              return (
+                <div key={svc.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+                  <StatusBadge status={svc.status} />
+                  <span className="font-semibold">{svc.name}</span>
+                  {svc.category && (
+                    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      style={{ background: `${catColors[svc.category] || '#6b7280'}20`, color: catColors[svc.category] || '#6b7280' }}>
+                      {t(`category_${svc.category}`, svc.category)}
+                    </span>
+                  )}
+                  {svc.domain && <span className="font-mono text-xs" style={{ color: 'var(--color-text-muted)' }}>{svc.domain}</span>}
+                  {svc.port && <span className="font-mono text-xs" style={{ color: 'var(--color-text-muted)' }}>:{svc.port}</span>}
+                  {svc.protocol && <span className="text-[10px] uppercase" style={{ color: 'var(--color-text-muted)' }}>{svc.protocol}</span>}
+                  {svc.docker ? <span className="text-[10px] px-1 py-0.5 rounded" style={{ background: '#06469520', color: '#0ea5e9' }}>Docker</span> : null}
+                  <button onClick={async () => { await api.deleteService(svc.id); loadData(); }}
+                    className="ml-auto p-1 rounded hover:bg-white/5" style={{ color: 'var(--color-danger)' }}><Trash2 size={12} /></button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

@@ -9,6 +9,7 @@ import ServerDetailPage from './pages/ServerDetailPage.jsx';
 import ProvidersPage from './pages/ProvidersPage.jsx';
 import ContractsPage from './pages/ContractsPage.jsx';
 import CostAnalysisPage from './pages/CostAnalysisPage.jsx';
+import ServicesPage from './pages/ServicesPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
 
 export default function App() {
@@ -34,6 +35,7 @@ export default function App() {
         <Route path="/providers" element={<ProvidersPage />} />
         <Route path="/contracts" element={<ContractsPage />} />
         <Route path="/costs" element={<CostAnalysisPage />} />
+        <Route path="/services" element={<ServicesPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
