@@ -73,6 +73,7 @@ export const api = {
 
   // Dashboard
   getSummary: () => http.get('/dashboard/summary').then(r => r.data),
+  getUpcomingBilling: (days = 30) => http.get(`/dashboard/upcoming-billing?days=${days}`).then(r => r.data),
   getCosts: () => http.get('/dashboard/costs').then(r => r.data),
   getAlerts: () => http.get('/dashboard/alerts').then(r => r.data),
   markAlertRead: (id) => http.put(`/dashboard/alerts/${id}/read`).then(r => r.data),

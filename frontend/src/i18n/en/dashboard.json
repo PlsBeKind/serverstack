@@ -17,5 +17,11 @@
   "servers_by_location": "Servers by Location",
   "no_alerts": "No alerts",
   "pending_alerts": "Pending Alerts",
-  "mark_all_read": "Mark All Read"
+  "mark_all_read": "Mark All Read",
+  "upcoming_billing": "Upcoming Billing",
+  "next_charge": "Next charge",
+  "in_days": "in {{count}} days",
+  "in_1_day": "tomorrow",
+  "today": "today",
+  "no_upcoming": "No upcoming billing"
 }

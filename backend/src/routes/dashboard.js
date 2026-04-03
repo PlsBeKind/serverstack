@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { getUpcomingBilling } from '../utils/billing.js';
 
 /**
  * @param {import('better-sqlite3').Database} db
@@ -12,13 +13,23 @@ export default function dashboardRoutes(db) {
     const providerCount = db.prepare('SELECT COUNT(*) as count FROM providers').get().count;
     const serviceCount = db.prepare('SELECT COUNT(*) as count FROM services').get().count;
     const pendingAlerts = db.prepare('SELECT COUNT(*) as count FROM alerts WHERE sent = 0').get().count;
+    const upcoming = getUpcomingBilling(db, 30);
+    const upcomingBillingTotal = upcoming.reduce((sum, b) => sum + b.amount, 0);
 
     res.json({
       servers: { total: serverCount, active: activeServers },
       providers: providerCount,
       services: serviceCount,
       pending_alerts: pendingAlerts,
+      upcoming_billing_total: upcomingBillingTotal,
+      next_billing: upcoming[0] || null,
     });
+  });
+
+  router.get('/upcoming-billing', (req, res) => {
+    const days = parseInt(req.query.days) || 30;
+    const billing = getUpcomingBilling(db, days);
+    res.json(billing);
   });
 
   router.get('/costs', (req, res) => {

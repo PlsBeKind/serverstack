@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Server, Building2, DollarSign, HardDrive, Cpu, Network, Bell, TrendingUp } from 'lucide-react';
+import { Server, Building2, DollarSign, HardDrive, Cpu, Network, Bell, TrendingUp, CalendarClock } from 'lucide-react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { api } from '../api/client.js';
 import CostBadge from '../components/CostBadge.jsx';
@@ -28,10 +28,11 @@ export default function DashboardPage() {
   const [costs, setCosts] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [resources, setResources] = useState(null);
+  const [billing, setBilling] = useState([]);
 
   useEffect(() => {
-    Promise.all([api.getSummary(), api.getCosts(), api.getAlerts(), api.getResources()])
-      .then(([s, c, a, r]) => { setSummary(s); setCosts(c); setAlerts(a); setResources(r); });
+    Promise.all([api.getSummary(), api.getCosts(), api.getAlerts(), api.getResources(), api.getUpcomingBilling()])
+      .then(([s, c, a, r, b]) => { setSummary(s); setCosts(c); setAlerts(a); setResources(r); setBilling(b); });
   }, []);
 
   if (!summary) return <div className="flex items-center justify-center h-64 opacity-50">{t('common:actions.loading')}</div>;
@@ -48,7 +49,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Server} label={t('total_servers')} value={summary.servers.total} sub={`${summary.servers.active} ${t('active_servers').toLowerCase()}`} />
         <StatCard icon={Building2} label={t('providers')} value={summary.providers} color="#06b6d4" />
-        <StatCard icon={DollarSign} label={t('total_monthly')} value={<CostBadge amount={costs?.total_monthly} />} color="#f59e0b" />
+        <StatCard icon={DollarSign} label={t('total_monthly')} value={<CostBadge amount={costs?.total_monthly} />}
+          sub={summary.next_billing ? `${t('next_charge')}: ${summary.next_billing.billing_date}` : null} color="#f59e0b" />
         <StatCard icon={TrendingUp} label={t('promo_savings')} value={<CostBadge amount={costs?.promo_savings} />} color="#8b5cf6" />
       </div>
 
@@ -131,6 +133,33 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Upcoming Billing */}
+      <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+        <h3 className="flex items-center gap-2 text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>
+          <CalendarClock size={16} style={{ color: '#f59e0b' }} /> {t('upcoming_billing')}
+        </h3>
+        {billing.length === 0 ? (
+          <p className="text-center py-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('no_upcoming')}</p>
+        ) : (
+          <div className="space-y-2">
+            {billing.slice(0, 5).map((b, i) => (
+              <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+                <div className="flex items-center gap-2">
+                  <span className="font-semibold">{b.server_name}</span>
+                  {b.provider_name && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{b.provider_name}</span>}
+                </div>
+                <div className="flex items-center gap-3">
+                  <CostBadge amount={b.amount} />
+                  <span className="text-xs font-mono" style={{ color: b.days_until <= 3 ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
+                    {b.days_until === 0 ? t('today') : b.days_until === 1 ? t('in_1_day') : t('in_days', { count: b.days_until })}
+                  </span>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );
