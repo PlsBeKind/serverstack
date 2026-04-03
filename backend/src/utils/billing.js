@@ -225,7 +225,8 @@ export function getUpcomingBilling(db) {
   const servers = db.prepare(`
     SELECT s.id, s.name, s.monthly_cost, s.contract_start_date, s.billing_cycle,
            s.contract_end_date, s.contract_period, s.auto_renew, s.is_cancelled,
-           s.next_cancellation_date, p.name as provider_name
+           s.next_cancellation_date, s.pending_cost, s.pending_cost_date,
+           p.name as provider_name
     FROM servers s
     LEFT JOIN providers p ON s.provider_id = p.id
     WHERE s.monthly_cost > 0
@@ -249,6 +250,25 @@ export function getUpcomingBilling(db) {
       label: billing.label,
       is_cancelled: billing.is_cancelled || billing.status === 'cancelled',
     });
+
+    // Add pending price change as a separate event
+    if (server.pending_cost && server.pending_cost_date) {
+      const pendingDays = daysBetween(today(), parseDate(server.pending_cost_date));
+      if (pendingDays >= 0) {
+        results.push({
+          server_id: server.id,
+          server_name: server.name,
+          provider_name: server.provider_name,
+          amount: server.pending_cost,
+          billing_date: server.pending_cost_date,
+          billing_cycle: server.billing_cycle,
+          days_until: pendingDays,
+          status: 'price_change',
+          label: `Price change: ${server.monthly_cost} → ${server.pending_cost}`,
+          old_cost: server.monthly_cost,
+        });
+      }
+    }
   }
 
   results.sort((a, b) => {

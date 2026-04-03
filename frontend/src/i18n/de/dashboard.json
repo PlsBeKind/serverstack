@@ -36,5 +36,6 @@
   "expired": "abgelaufen",
   "date_unknown": "Datum unbekannt",
   "auto_renewed": "automatisch verl\u00e4ngert",
+  "price_change_on": "Preis\u00e4nderung am {{date}}",
   "cost_trend": "Kostenentwicklung (12 Monate)"
 }

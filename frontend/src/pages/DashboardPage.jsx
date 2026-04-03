@@ -160,15 +160,18 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-2">
             {billing.map((b, i) => {
-              const isDone = b.status === 'cancelled'; // contract ended, no more billing
-              const isStillBilled = b.is_cancelled && !isDone; // cancelled but still charged until end_date
+              const isDone = b.status === 'cancelled';
+              const isStillBilled = b.is_cancelled && !isDone;
+              const isPriceChange = b.status === 'price_change';
               const isExpired = b.status === 'expired';
               const isDueSoon = b.status === 'due_soon';
               const isUnknown = b.status === 'unknown_date';
-              const color = isDone ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
+              const color = isPriceChange ? '#f59e0b' : isDone ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
 
               let timeLabel;
-              if (isDone) {
+              if (isPriceChange) {
+                timeLabel = t('price_change_on', { date: b.billing_date });
+              } else if (isDone) {
                 if (b.days_until !== null && b.days_until >= 0) timeLabel = t('ends_in_days', { count: b.days_until });
                 else if (b.date) timeLabel = t('ends_on', { date: b.date });
                 else timeLabel = '';
@@ -187,11 +190,17 @@ export default function DashboardPage() {
                   <div className="flex items-center gap-2">
                     {isUnknown && <AlertTriangle size={12} style={{ color: '#6b7280' }} />}
                     {(isDone || isStillBilled) && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>{t('contracts:is_cancelled')}</span>}
+                    {isPriceChange && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#92400e20', color: '#f59e0b' }}>⬆</span>}
                     <span className="font-semibold">{b.server_name}</span>
                     {b.provider_name && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{b.provider_name}</span>}
                   </div>
                   <div className="flex items-center gap-3">
-                    {b.amount > 0 && <CostBadge amount={b.amount} />}
+                    {isPriceChange && b.old_cost ? (
+                      <span className="font-mono text-xs">
+                        <span style={{ color: 'var(--color-text-muted)' }}><CostBadge amount={b.old_cost} /></span>
+                        <span style={{ color: '#f59e0b' }}> → <CostBadge amount={b.amount} /></span>
+                      </span>
+                    ) : b.amount > 0 && <CostBadge amount={b.amount} />}
                     <span className="text-xs font-mono" style={{ color }}>{timeLabel}</span>
                   </div>
                 </Link>

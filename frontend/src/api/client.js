@@ -55,6 +55,8 @@ export const api = {
   deleteDisk: (serverId, diskId) => http.delete(`/servers/${serverId}/disks/${diskId}`),
   getCostHistory: (serverId) => http.get(`/servers/${serverId}/cost-history`).then(r => r.data),
   priceChange: (serverId, data) => http.post(`/servers/${serverId}/price-change`, data).then(r => r.data),
+  schedulePriceChange: (serverId, data) => http.post(`/servers/${serverId}/schedule-price-change`, data).then(r => r.data),
+  cancelScheduledPrice: (serverId) => http.delete(`/servers/${serverId}/schedule-price-change`),
   createServer: (data) => http.post('/servers', data).then(r => r.data),
   updateServer: (id, data) => http.put(`/servers/${id}`, data).then(r => r.data),
   deleteServer: (id) => http.delete(`/servers/${id}`),

@@ -10,6 +10,27 @@ export function checkAlerts(db) {
     )
   `);
 
+  // Apply pending price changes that have reached their effective date
+  const pendingChanges = db.prepare(`
+    SELECT id, name, monthly_cost, pending_cost, pending_cost_date, pending_cost_reason
+    FROM servers
+    WHERE pending_cost IS NOT NULL
+      AND pending_cost_date IS NOT NULL
+      AND date(pending_cost_date) <= date('now')
+  `).all();
+
+  for (const server of pendingChanges) {
+    // Log in cost_history
+    db.prepare('INSERT INTO cost_history (server_id, old_cost, new_cost, reason) VALUES (?, ?, ?, ?)')
+      .run(server.id, server.monthly_cost, server.pending_cost, server.pending_cost_reason || 'price_increase');
+
+    // Apply the new price and clear pending fields
+    db.prepare("UPDATE servers SET monthly_cost = ?, pending_cost = NULL, pending_cost_date = NULL, pending_cost_reason = NULL, updated_at = datetime('now') WHERE id = ?")
+      .run(server.pending_cost, server.id);
+
+    console.log(`Price change applied for ${server.name}: ${server.monthly_cost} → ${server.pending_cost}`);
+  }
+
   // Only alert on cancelled contracts (won't auto-renew, will actually expire)
   const expiringServers = db.prepare(`
     SELECT id, name, next_cancellation_date
