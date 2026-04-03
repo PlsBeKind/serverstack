@@ -168,7 +168,7 @@ export default function ServerDetailPage() {
           {/* Smart billing + contract status */}
           {server.monthly_cost > 0 && (
             <div className="mt-4 pt-4 space-y-2 text-sm" style={{ borderTop: '1px solid var(--color-border)' }}>
-              {(() => {
+              {!server.is_cancelled && (() => {
                 const now = new Date(); now.setHours(0, 0, 0, 0);
                 const addM = (date, m) => { const r = new Date(date); const od = r.getDate(); r.setDate(1); r.setMonth(r.getMonth() + m); const ld = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate(); r.setDate(Math.min(od, ld)); return r; };
                 const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;

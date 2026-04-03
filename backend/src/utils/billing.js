@@ -96,6 +96,9 @@ export function getNextBillingDate(server) {
   const cost = server.monthly_cost || 0;
   if (cost <= 0) return null;
 
+  // Cancelled servers have no upcoming billing
+  if (server.is_cancelled) return null;
+
   const now = today();
   const cycleMonths = getCycleMonths(server.billing_cycle);
 

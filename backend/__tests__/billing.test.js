@@ -73,6 +73,10 @@ describe('getNextBillingDate', () => {
 
   // --- EDGE CASES ---
 
+  it('cancelled server → null (no upcoming billing)', () => {
+    expect(getNextBillingDate({ monthly_cost: 10, billing_cycle: 'monthly', contract_start_date: '2025-01-01', is_cancelled: 1 })).toBeNull();
+  });
+
   it('no cost → null', () => {
     expect(getNextBillingDate({ monthly_cost: 0 })).toBeNull();
   });
