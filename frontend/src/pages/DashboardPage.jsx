@@ -184,7 +184,7 @@ export default function DashboardPage() {
               else timeLabel = b.label;
 
               return (
-                <Link key={i} to={`/servers/${b.server_id}/edit`}
+                <Link key={i} to={`/servers/${b.server_id}`}
                   className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm hover:bg-white/5 transition-colors"
                   style={{ background: 'var(--color-surface)' }}>
                   <div className="flex items-center gap-2">
