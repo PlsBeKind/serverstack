@@ -96,14 +96,21 @@ export function getNextBillingDate(server) {
   const cost = server.monthly_cost || 0;
   if (cost <= 0) return null;
 
-  // Cancelled servers: show in widget but as cancelled status, not billing
+  // Cancelled servers: still billed until end_date, then done
   if (server.is_cancelled) {
     const endDate = server.contract_end_date || server.next_cancellation_date;
     if (endDate) {
-      const days = daysBetween(today(), parseDate(endDate));
-      return { date: endDate, days_until: days, status: 'cancelled', label: `Cancelled — ends ${endDate}`, amount: 0 };
+      const endDays = daysBetween(today(), parseDate(endDate));
+      if (endDays < 0) {
+        // Contract ended — no more billing
+        return { date: endDate, days_until: endDays, status: 'cancelled', label: `Cancelled — ended ${endDate}`, amount: 0 };
+      }
     }
-    return { date: null, days_until: null, status: 'cancelled', label: 'Cancelled', amount: 0 };
+    if (!endDate) {
+      return { date: null, days_until: null, status: 'cancelled', label: 'Cancelled', amount: 0 };
+    }
+    // Cancelled but end_date still in future — billing continues until end_date
+    // Fall through to normal billing calculation, result will be marked as cancelled
   }
 
   const now = today();
@@ -130,7 +137,7 @@ export function getNextBillingDate(server) {
     const next = nextRecurringDate(server.contract_start_date, cycleMonths);
     const nextStr = formatDate(next);
     const days = daysBetween(now, next);
-    return { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount };
+    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount });
   }
 
   // Priority 2: No start_date but end_date exists → derive billing day from end_date
@@ -152,11 +159,18 @@ export function getNextBillingDate(server) {
     }
     const nextStr = formatDate(next);
     const days = daysBetween(now, next);
-    return { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount };
+    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount });
   }
 
   // --- NO DATE INFO ---
-  return { date: null, days_until: null, status: 'unknown_date', label: 'Billing date unknown', amount };
+  return markCancelled(server, { date: null, days_until: null, status: 'unknown_date', label: 'Billing date unknown', amount });
+}
+
+function markCancelled(server, result) {
+  if (server.is_cancelled && result.status !== 'cancelled') {
+    result.is_cancelled = true;
+  }
+  return result;
 }
 
 /**
@@ -224,6 +238,7 @@ export function getUpcomingBilling(db) {
       days_until: billing.days_until,
       status: billing.status,
       label: billing.label,
+      is_cancelled: billing.is_cancelled || billing.status === 'cancelled',
     });
   }
 
