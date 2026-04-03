@@ -9,6 +9,7 @@ import serviceRoutes from '../src/routes/services.js';
 import tagRoutes from '../src/routes/tags.js';
 import dashboardRoutes from '../src/routes/dashboard.js';
 import exportRoutes from '../src/routes/export.js';
+import glancesRoutes from '../src/routes/glances.js';
 
 /**
  * Create a fresh app + in-memory DB for testing.
@@ -29,6 +30,7 @@ export async function createTestApp() {
   app.use('/api/v1/tags', authMiddleware, tagRoutes(db));
   app.use('/api/v1/dashboard', authMiddleware, dashboardRoutes(db));
   app.use('/api/v1', authMiddleware, exportRoutes(db));
+  app.use('/api/v1', authMiddleware, glancesRoutes(db));
 
   return { app, db };
 }

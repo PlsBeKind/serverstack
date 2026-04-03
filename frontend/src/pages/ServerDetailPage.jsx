@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText, Tag, DollarSign } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText, Tag, DollarSign, Activity } from 'lucide-react';
 import CostBadge from '../components/CostBadge.jsx';
 import TagPill from '../components/TagPill.jsx';
 import { api } from '../api/client.js';
@@ -78,6 +78,7 @@ export default function ServerDetailPage() {
         <Link to="/servers" className="p-2 rounded-lg hover:bg-white/5"><ArrowLeft size={20} /></Link>
         <h1 className="text-2xl font-bold flex-1" style={{ fontFamily: 'var(--font-heading)' }}>{server.name}</h1>
         <StatusBadge status={server.status} />
+        <Link to={`/servers/${id}/monitoring`} className="p-2 rounded-lg hover:bg-white/5 transition-colors" style={{ color: '#10b981' }} title={t('monitoring:title')}><Activity size={18} /></Link>
         <Link to={`/servers/${id}/edit`} className="p-2 rounded-lg hover:bg-white/5" style={{ color: 'var(--color-primary)' }}><Edit size={18} /></Link>
         <button onClick={handleDelete} className="p-2 rounded-lg hover:bg-white/5" style={{ color: 'var(--color-danger)' }}><Trash2 size={18} /></button>
       </div>

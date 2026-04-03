@@ -96,4 +96,18 @@ export const api = {
   // Export/Import
   exportData: () => http.get('/export').then(r => r.data),
   importData: (data) => http.post('/import', data).then(r => r.data),
+
+  // Glances Monitoring
+  getGlancesConfig: (serverId) => http.get(`/servers/${serverId}/glances/config`).then(r => r.data),
+  saveGlancesConfig: (serverId, data) => http.post(`/servers/${serverId}/glances/config`, data).then(r => r.data),
+  deleteGlancesConfig: (serverId) => http.delete(`/servers/${serverId}/glances/config`),
+  testGlancesConnection: (serverId, data) => http.post(`/servers/${serverId}/glances/test`, data).then(r => r.data),
+  discoverGlancesDevices: (serverId, data) => http.post(`/servers/${serverId}/glances/discover`, data).then(r => r.data),
+  getGlancesCurrent: (serverId) => http.get(`/servers/${serverId}/glances/current`).then(r => r.data),
+  getGlancesHistory: (serverId, params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return http.get(`/servers/${serverId}/glances/history${query ? '?' + query : ''}`).then(r => r.data);
+  },
+  getGlancesSettings: () => http.get('/glances/settings').then(r => r.data),
+  updateGlancesSettings: (data) => http.put('/glances/settings', data).then(r => r.data),
 };

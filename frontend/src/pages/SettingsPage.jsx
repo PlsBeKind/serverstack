@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Lock, Download, Upload, Check, AlertCircle, DollarSign, Tag, Plus, Trash2 } from 'lucide-react';
+import { Globe, Lock, Download, Upload, Check, AlertCircle, DollarSign, Tag, Plus, Trash2, Activity } from 'lucide-react';
 import { api } from '../api/client.js';
 import TagPill from '../components/TagPill.jsx';
 
@@ -16,9 +16,14 @@ export default function SettingsPage() {
   const [pwError, setPwError] = useState('');
   const [importMsg, setImportMsg] = useState('');
   const [importError, setImportError] = useState('');
+  const [monitorSettings, setMonitorSettings] = useState({ default_poll_interval: 60, retention_hours: 168 });
+  const [monitorMsg, setMonitorMsg] = useState('');
 
   const loadTags = () => api.getTags().then(setTags);
-  useEffect(() => { loadTags(); }, []);
+  useEffect(() => {
+    loadTags();
+    api.getGlancesSettings().then(setMonitorSettings).catch(() => {});
+  }, []);
   const fileRef = useRef(null);
 
   const changeLanguage = (lng) => {
@@ -141,6 +146,37 @@ export default function SettingsPage() {
             className="px-3 py-2 rounded-lg text-sm font-semibold text-white hover:scale-[1.02] transition-all"
             style={{ background: 'var(--color-primary)' }}><Plus size={16} /></button>
         </div>
+      </div>
+
+      <div className="rounded-xl p-6" style={cardStyle}>
+        <h3 className="flex items-center gap-2 font-semibold mb-4"><Activity size={18} style={{ color: '#10b981' }} /> {t('monitoring:settings_title')}</h3>
+        {monitorMsg && <div className="flex items-center gap-2 px-3 py-2 rounded text-sm mb-3" style={{ background: '#064e3b', color: '#10b981' }}><Check size={14} /> {monitorMsg}</div>}
+        <div className="grid grid-cols-2 gap-4 mb-4">
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider mb-1 block" style={{ color: 'var(--color-text-muted)' }}>{t('monitoring:default_poll_interval')}</label>
+            <div className="flex items-center gap-2">
+              <input type="number" min="10" max="3600" value={monitorSettings.default_poll_interval}
+                onChange={e => setMonitorSettings(s => ({ ...s, default_poll_interval: Number(e.target.value) }))}
+                className="w-24 px-3 py-2 rounded-lg text-sm font-mono outline-none" style={inputStyle} />
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('monitoring:seconds')}</span>
+            </div>
+          </div>
+          <div>
+            <label className="text-xs font-medium uppercase tracking-wider mb-1 block" style={{ color: 'var(--color-text-muted)' }}>{t('monitoring:retention_period')}</label>
+            <div className="flex items-center gap-2">
+              <input type="number" min="1" max="8760" value={monitorSettings.retention_hours}
+                onChange={e => setMonitorSettings(s => ({ ...s, retention_hours: Number(e.target.value) }))}
+                className="w-24 px-3 py-2 rounded-lg text-sm font-mono outline-none" style={inputStyle} />
+              <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('monitoring:retention_hours')}</span>
+            </div>
+          </div>
+        </div>
+        <button onClick={async () => {
+          await api.updateGlancesSettings(monitorSettings);
+          setMonitorMsg(t('monitoring:settings_saved'));
+          setTimeout(() => setMonitorMsg(''), 3000);
+        }} className="px-4 py-2 rounded-lg text-sm font-semibold text-white hover:scale-[1.02] transition-all"
+          style={{ background: 'var(--color-primary)' }}>{t('common:actions.save')}</button>
       </div>
 
       <div className="rounded-xl p-6" style={cardStyle}>
