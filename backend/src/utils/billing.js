@@ -109,8 +109,9 @@ export function getNextBillingDate(server) {
     if (!endDate) {
       return { date: null, days_until: null, status: 'cancelled', label: 'Cancelled', amount: 0 };
     }
-    // Cancelled but end_date still in future — billing continues until end_date
-    // Fall through to normal billing calculation, result will be marked as cancelled
+    // Cancelled but end_date still in future — check if there's actually a billing
+    // cycle that falls BEFORE the end_date. If next billing >= end_date, no more charges.
+    // Fall through to normal billing calculation, then check against end_date.
   }
 
   const now = today();
@@ -167,9 +168,17 @@ export function getNextBillingDate(server) {
 }
 
 function markCancelled(server, result) {
-  if (server.is_cancelled && result.status !== 'cancelled') {
-    result.is_cancelled = true;
+  if (!server.is_cancelled) return result;
+  if (result.status === 'cancelled') return result;
+
+  // If cancelled and next billing date >= end_date, no more charges
+  const endDate = server.contract_end_date || server.next_cancellation_date;
+  if (endDate && result.date && result.date >= endDate) {
+    const endDays = daysBetween(today(), parseDate(endDate));
+    return { date: endDate, days_until: endDays, status: 'cancelled', label: `Cancelled — ends ${endDate}`, amount: 0 };
   }
+
+  result.is_cancelled = true;
   return result;
 }
 

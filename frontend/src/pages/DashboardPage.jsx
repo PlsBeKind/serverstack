@@ -179,7 +179,7 @@ export default function DashboardPage() {
                   style={{ background: 'var(--color-surface)' }}>
                   <div className="flex items-center gap-2">
                     {isUnknown && <AlertTriangle size={12} style={{ color: '#6b7280' }} />}
-                    {(isDone || isStillBilled) && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>Cancelled</span>}
+                    {(isDone || isStillBilled) && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>{t('contracts:is_cancelled')}</span>}
                     <span className="font-semibold">{b.server_name}</span>
                     {b.provider_name && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{b.provider_name}</span>}
                   </div>

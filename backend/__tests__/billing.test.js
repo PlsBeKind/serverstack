@@ -80,6 +80,13 @@ describe('getNextBillingDate', () => {
     expect(result.days_until).toBeLessThan(35);
   });
 
+  it('cancelled with end_date within current billing cycle → no more billing', () => {
+    // end_date is 24 days away, monthly billing — next charge would be ON end_date, so no charge
+    const result = getNextBillingDate({ monthly_cost: 8.09, billing_cycle: 'monthly', contract_end_date: futureDate(24), is_cancelled: 1 });
+    expect(result.status).toBe('cancelled');
+    expect(result.amount).toBe(0);
+  });
+
   it('cancelled with past end_date → no billing', () => {
     const result = getNextBillingDate({ monthly_cost: 10, billing_cycle: 'monthly', contract_end_date: '2024-01-01', is_cancelled: 1 });
     expect(result.status).toBe('cancelled');
