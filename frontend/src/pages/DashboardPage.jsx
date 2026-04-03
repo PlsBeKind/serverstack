@@ -136,7 +136,13 @@ export default function DashboardPage() {
                 <div key={alert.id} className={`flex items-start gap-2 p-2.5 rounded-lg text-xs ${alert.sent ? 'opacity-50' : ''}`}
                   style={{ background: 'var(--color-surface)' }}>
                   <Bell size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--color-warning)' }} />
-                  <span className="line-clamp-2">{alert.message}</span>
+                  <span className="line-clamp-2">
+                    {alert.type === 'cancellation' && alert.server_name
+                      ? t('alert_cancellation', { name: alert.server_name, date: alert.trigger_date })
+                      : alert.type === 'promo_end' && alert.server_name
+                        ? t('alert_promo_end', { name: alert.server_name, date: alert.trigger_date })
+                        : alert.message}
+                  </span>
                 </div>
               ))}
             </div>

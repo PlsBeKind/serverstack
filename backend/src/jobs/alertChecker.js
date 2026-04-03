@@ -3,6 +3,13 @@
  * @param {import('better-sqlite3').Database} db
  */
 export function checkAlerts(db) {
+  // Clean up duplicate alerts (from before dedup fix)
+  db.exec(`
+    DELETE FROM alerts WHERE id NOT IN (
+      SELECT MIN(id) FROM alerts GROUP BY server_id, type, trigger_date
+    )
+  `);
+
   // Only alert on cancelled contracts (won't auto-renew, will actually expire)
   const expiringServers = db.prepare(`
     SELECT id, name, next_cancellation_date

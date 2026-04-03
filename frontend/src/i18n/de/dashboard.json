@@ -20,6 +20,8 @@
   "servers_by_os": "Server nach Betriebssystem",
   "servers_by_location": "Server nach Standort",
   "no_alerts": "Keine Benachrichtigungen",
+  "alert_cancellation": "K\u00fcndigungsfrist f\u00fcr {{name}} am {{date}}",
+  "alert_promo_end": "Aktionspreis f\u00fcr {{name}} endet am {{date}}",
   "pending_alerts": "Offene Benachrichtigungen",
   "mark_all_read": "Alle als gelesen markieren",
   "upcoming_billing": "Anstehende Abrechnungen",

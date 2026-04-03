@@ -20,6 +20,8 @@
   "servers_by_os": "Servers by OS",
   "servers_by_location": "Servers by Location",
   "no_alerts": "No alerts",
+  "alert_cancellation": "Cancellation deadline for {{name}} on {{date}}",
+  "alert_promo_end": "Promo price for {{name}} ends {{date}}",
   "pending_alerts": "Pending Alerts",
   "mark_all_read": "Mark All Read",
   "upcoming_billing": "Upcoming Billing",
