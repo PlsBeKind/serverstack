@@ -10,7 +10,9 @@ export default function ProvidersPage() {
   const [editing, setEditing] = useState(null);
   const [surgeProvider, setSurgeProvider] = useState(null);
   const [surgeForm, setSurgeForm] = useState({ percentage: '', effective_date: '' });
-  const [surgeResult, setSurgeResult] = useState(null);
+  const [surgeServers, setSurgeServers] = useState([]);
+  const [surgeStep, setSurgeStep] = useState('input'); // input | preview | done
+  const [surgeApplied, setSurgeApplied] = useState(0);
   const [form, setForm] = useState({ name: '', website: '', support_email: '', support_phone: '', notes: '' });
   const [error, setError] = useState('');
 
@@ -107,8 +109,13 @@ export default function ProvidersPage() {
                     </a>
                   )}
                 </div>
-                <button onClick={() => { setSurgeProvider(surgeProvider === p.id ? null : p.id); setSurgeResult(null); setSurgeForm({ percentage: '', effective_date: '' }); }}
-                  className="p-2 rounded-lg hover:bg-white/5" style={{ color: '#f59e0b' }} title={t('providers_page.price_surge')}>
+                <button onClick={async () => {
+                  if (surgeProvider === p.id) { setSurgeProvider(null); return; }
+                  setSurgeProvider(p.id); setSurgeStep('input'); setSurgeApplied(0);
+                  setSurgeForm({ percentage: '', effective_date: '' });
+                  const allServers = await api.getServers();
+                  setSurgeServers(allServers.filter(s => s.provider_id === p.id && s.monthly_cost > 0).map(s => ({ ...s, new_cost: '' })));
+                }} className="p-2 rounded-lg hover:bg-white/5" style={{ color: '#f59e0b' }} title={t('providers_page.price_surge')}>
                   <TrendingUp size={14} />
                 </button>
                 <button onClick={() => handleEdit(p)} className="p-2 rounded-lg hover:bg-white/5" style={{ color: 'var(--color-text-muted)' }}><Pencil size={14} /></button>
@@ -117,40 +124,73 @@ export default function ProvidersPage() {
 
               {surgeProvider === p.id && (
                 <div className="p-4 animate-fade-in rounded-b-xl" style={{ background: 'var(--color-surface-raised)', borderLeft: '1px solid var(--color-border)', borderRight: '1px solid var(--color-border)', borderBottom: '1px solid var(--color-border)' }}>
-                  {surgeResult ? (
-                    <div className="space-y-2">
+                  {surgeStep === 'done' ? (
+                    <div>
                       <p className="text-sm font-semibold" style={{ color: 'var(--color-primary)' }}>
-                        {t('providers_page.surge_applied', { count: surgeResult.affected_servers })}
+                        {t('providers_page.surge_applied', { count: surgeApplied })}
                       </p>
-                      {surgeResult.servers.map(s => (
-                        <div key={s.server_id} className="flex items-center justify-between px-3 py-1.5 rounded text-xs" style={{ background: 'var(--color-surface)' }}>
-                          <span>{s.server_name}</span>
-                          <span className="font-mono" style={{ color: '#f59e0b' }}>€{s.old_cost.toFixed(2)} → €{s.new_cost.toFixed(2)}</span>
-                        </div>
-                      ))}
-                      <button onClick={() => { setSurgeProvider(null); setSurgeResult(null); }}
-                        className="text-xs mt-2 hover:underline" style={{ color: 'var(--color-text-muted)' }}>{t('actions.confirm')}</button>
+                      <button onClick={() => setSurgeProvider(null)} className="text-xs mt-2 hover:underline" style={{ color: 'var(--color-text-muted)' }}>{t('actions.confirm')}</button>
                     </div>
                   ) : (
-                    <div className="flex items-end gap-3">
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('providers_page.percentage')}</label>
-                        <input type="text" inputMode="decimal" value={surgeForm.percentage} onChange={e => setSurgeForm(f => ({ ...f, percentage: e.target.value }))}
-                          placeholder="+18.51" className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono" style={inputStyle} />
+                    <div className="space-y-3">
+                      {/* Step 1: percentage + date to pre-fill */}
+                      <div className="flex items-end gap-3">
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('providers_page.percentage')}</label>
+                          <input type="text" inputMode="decimal" value={surgeForm.percentage}
+                            onChange={e => {
+                              const pct = parseFloat(String(e.target.value).replace(',', '.'));
+                              setSurgeForm(f => ({ ...f, percentage: e.target.value }));
+                              if (!isNaN(pct)) {
+                                setSurgeServers(prev => prev.map(s => ({
+                                  ...s, new_cost: (Math.round(s.monthly_cost * (1 + pct / 100) * 100) / 100).toFixed(2),
+                                })));
+                              }
+                            }}
+                            placeholder="+18.51" className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono" style={inputStyle} />
+                        </div>
+                        <div className="flex-1">
+                          <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('providers_page.effective_date')}</label>
+                          <input type="date" value={surgeForm.effective_date} onChange={e => setSurgeForm(f => ({ ...f, effective_date: e.target.value }))}
+                            className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+                        </div>
                       </div>
-                      <div className="flex-1">
-                        <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('providers_page.effective_date')}</label>
-                        <input type="date" value={surgeForm.effective_date} onChange={e => setSurgeForm(f => ({ ...f, effective_date: e.target.value }))}
-                          className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+
+                      {/* Per-server editable prices */}
+                      {surgeServers.length > 0 && (
+                        <div className="space-y-2">
+                          {surgeServers.map((s, i) => (
+                            <div key={s.id} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+                              <span className="flex-1 truncate">{s.name}</span>
+                              <span className="font-mono text-xs" style={{ color: 'var(--color-text-muted)' }}>€{s.monthly_cost.toFixed(2)}</span>
+                              <span style={{ color: 'var(--color-text-muted)' }}>→</span>
+                              <input type="text" inputMode="decimal" value={s.new_cost}
+                                onChange={e => setSurgeServers(prev => prev.map((srv, j) => j === i ? { ...srv, new_cost: e.target.value } : srv))}
+                                className="w-24 px-2 py-1 rounded text-sm outline-none font-mono text-right" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: '#f59e0b' }} />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      <div className="flex justify-end">
+                        <button onClick={async () => {
+                          if (!surgeForm.effective_date) return;
+                          let count = 0;
+                          for (const s of surgeServers) {
+                            const nc = parseFloat(String(s.new_cost).replace(',', '.'));
+                            if (!isNaN(nc) && nc > 0 && nc !== s.monthly_cost) {
+                              await api.schedulePriceChange(s.id, { new_cost: nc, effective_date: surgeForm.effective_date, reason: 'price_increase' });
+                              count++;
+                            }
+                          }
+                          setSurgeApplied(count);
+                          setSurgeStep('done');
+                        }} disabled={!surgeForm.effective_date}
+                          className="px-4 py-2 rounded-lg text-sm font-semibold text-white hover:scale-[1.02] transition-all disabled:opacity-50"
+                          style={{ background: '#f59e0b' }}>
+                          {t('providers_page.apply_surge')}
+                        </button>
                       </div>
-                      <button onClick={async () => {
-                        if (!surgeForm.percentage || !surgeForm.effective_date) return;
-                        const result = await api.applyPriceSurge(p.id, { percentage: surgeForm.percentage, effective_date: surgeForm.effective_date, reason: 'price_increase' });
-                        setSurgeResult(result);
-                      }} className="px-4 py-2 rounded-lg text-sm font-semibold text-white hover:scale-[1.02] transition-all"
-                        style={{ background: '#f59e0b' }}>
-                        {t('providers_page.apply_surge')}
-                      </button>
                     </div>
                   )}
                 </div>
