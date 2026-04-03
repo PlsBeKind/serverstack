@@ -202,7 +202,7 @@ export function getUpcomingBilling(db) {
   const servers = db.prepare(`
     SELECT s.id, s.name, s.monthly_cost, s.contract_start_date, s.billing_cycle,
            s.contract_end_date, s.contract_period, s.auto_renew, s.is_cancelled,
-           p.name as provider_name
+           s.next_cancellation_date, p.name as provider_name
     FROM servers s
     LEFT JOIN providers p ON s.provider_id = p.id
     WHERE s.monthly_cost > 0

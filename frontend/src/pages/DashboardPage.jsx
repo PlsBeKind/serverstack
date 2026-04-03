@@ -153,7 +153,11 @@ export default function DashboardPage() {
               const color = isCancelled ? '#ef4444' : isExpired ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
 
               let timeLabel;
-              if (isCancelled) timeLabel = b.date ? `ends ${b.date}` : t('common:status.cancelled', 'Cancelled');
+              if (isCancelled) {
+                if (b.days_until !== null && b.days_until >= 0) timeLabel = `ends ${t('in_days', { count: b.days_until })}`;
+                else if (b.date) timeLabel = `ends ${b.date}`;
+                else timeLabel = '';
+              }
               else if (isExpired) timeLabel = t('expired');
               else if (isUnknown) timeLabel = t('date_unknown');
               else if (b.days_until === 0) timeLabel = t('today');
