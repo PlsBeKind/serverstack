@@ -57,7 +57,7 @@ export default function ServersPage() {
               style={activeTag === tag.name
                 ? { background: `${tag.color}30`, color: tag.color, border: `1px solid ${tag.color}` }
                 : { color: 'var(--color-text-muted)', border: '1px solid transparent' }}>
-              {tag.name}
+              {tag.is_preset ? t(`tag_${tag.name}`, tag.name) : tag.name}
             </button>
           ))}
         </div>

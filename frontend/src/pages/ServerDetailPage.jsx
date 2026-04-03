@@ -115,7 +115,7 @@ export default function ServerDetailPage() {
               <select onChange={async (e) => { if (e.target.value) { await api.assignTag(id, Number(e.target.value)); loadData(); e.target.value = ''; } }}
                 className="px-2 py-1 rounded-lg text-xs outline-none" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
                 <option value="">+ {t('add_tag')}</option>
-                {available.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+                {available.map(tg => <option key={tg.id} value={tg.id}>{tg.is_preset ? t(`tag_${tg.name}`, tg.name) : tg.name}</option>)}
               </select>
             );
           })()}

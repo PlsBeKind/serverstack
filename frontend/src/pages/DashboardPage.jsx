@@ -136,7 +136,13 @@ export default function DashboardPage() {
                 <div key={alert.id} className={`flex items-start gap-2 p-2.5 rounded-lg text-xs ${alert.sent ? 'opacity-50' : ''}`}
                   style={{ background: 'var(--color-surface)' }}>
                   <Bell size={14} className="mt-0.5 shrink-0" style={{ color: 'var(--color-warning)' }} />
-                  <span className="line-clamp-2">{alert.message}</span>
+                  <span className="line-clamp-2">
+                    {alert.type === 'cancellation' && alert.server_name
+                      ? t('alert_cancellation', { name: alert.server_name, date: alert.trigger_date })
+                      : alert.type === 'promo_end' && alert.server_name
+                        ? t('alert_promo_end', { name: alert.server_name, date: alert.trigger_date })
+                        : alert.message}
+                  </span>
                 </div>
               ))}
             </div>
@@ -154,16 +160,16 @@ export default function DashboardPage() {
         ) : (
           <div className="space-y-2">
             {billing.map((b, i) => {
-              const isCancelled = b.status === 'cancelled';
+              const isDone = b.status === 'cancelled'; // contract ended, no more billing
+              const isStillBilled = b.is_cancelled && !isDone; // cancelled but still charged until end_date
               const isExpired = b.status === 'expired';
               const isDueSoon = b.status === 'due_soon';
               const isUnknown = b.status === 'unknown_date';
-              const color = isCancelled ? '#ef4444' : isExpired ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
+              const color = isDone ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
 
               let timeLabel;
-              if (isCancelled) {
-                if (b.days_until !== null && b.days_until >= 0) timeLabel = t('ends_in_days', { count: b.days_until });
-                else if (b.date) timeLabel = t('ends_on', { date: b.date });
+              if (isDone) {
+                if (b.date) timeLabel = t('ends_on', { date: b.date });
                 else timeLabel = '';
               }
               else if (isExpired) timeLabel = t('expired');
@@ -179,13 +185,12 @@ export default function DashboardPage() {
                   style={{ background: 'var(--color-surface)' }}>
                   <div className="flex items-center gap-2">
                     {isUnknown && <AlertTriangle size={12} style={{ color: '#6b7280' }} />}
+                    {(isDone || isStillBilled) && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>{t('contracts:is_cancelled')}</span>}
                     <span className="font-semibold">{b.server_name}</span>
                     {b.provider_name && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{b.provider_name}</span>}
                   </div>
                   <div className="flex items-center gap-3">
-                    {isCancelled
-                      ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>Cancelled</span>
-                      : <CostBadge amount={b.amount} />}
+                    {b.amount > 0 && <CostBadge amount={b.amount} />}
                     <span className="text-xs font-mono" style={{ color }}>{timeLabel}</span>
                   </div>
                 </Link>
