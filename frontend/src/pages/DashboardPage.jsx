@@ -152,7 +152,7 @@ export default function DashboardPage() {
                 </div>
                 <div className="flex items-center gap-3">
                   <CostBadge amount={b.amount} />
-                  <span className="text-xs font-mono" style={{ color: b.days_until <= 3 ? 'var(--color-warning)' : 'var(--color-text-muted)' }}>
+                  <span className="text-xs font-mono" style={{ color: b.days_until <= 7 ? '#ef4444' : b.days_until <= 14 ? '#f59e0b' : 'var(--color-text-muted)' }}>
                     {b.days_until === 0 ? t('today') : b.days_until === 1 ? t('in_1_day') : t('in_days', { count: b.days_until })}
                   </span>
                 </div>

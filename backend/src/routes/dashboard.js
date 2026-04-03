@@ -27,7 +27,7 @@ export default function dashboardRoutes(db) {
   });
 
   router.get('/upcoming-billing', (req, res) => {
-    const days = parseInt(req.query.days) || 30;
+    const days = parseInt(req.query.days) || 60;
     const billing = getUpcomingBilling(db, days);
     res.json(billing);
   });

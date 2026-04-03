@@ -164,6 +164,63 @@ export default function ServerDetailPage() {
             {server.is_cancelled ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>{t('contracts:is_cancelled')}</span> : null}
             {server.auto_renew ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#064e3b', color: '#10b981' }}>{t('contracts:auto_renew')}</span> : null}
           </div>
+
+          {/* Smart billing + contract status */}
+          <div className="mt-4 pt-4 space-y-2 text-sm" style={{ borderTop: '1px solid var(--color-border)' }}>
+            {(() => {
+              // Next billing (when money leaves)
+              if (server.billing_cycle === 'prepaid') {
+                return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')}{server.contract_end_date ? ` — ${server.contract_end_date}` : ''}</p>;
+              }
+              if (!server.contract_start_date || !server.billing_cycle) {
+                return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:no_billing_data')}</p>;
+              }
+              // Calculate next billing client-side from start_date + billing_cycle
+              const monthsMap = { monthly: 1, quarterly: 3, 'semi-annual': 6, yearly: 12, biennial: 24 };
+              const months = monthsMap[server.billing_cycle];
+              if (months) {
+                const [sy, sm, sd] = server.contract_start_date.split('-').map(Number);
+                let next = new Date(sy, sm - 1, sd);
+                const now = new Date(); now.setHours(0, 0, 0, 0);
+                const origDay = sd;
+                while (next <= now) {
+                  const tgt = next.getMonth() + months;
+                  next = new Date(next.getFullYear(), tgt, 1);
+                  const last = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
+                  next.setDate(Math.min(origDay, last));
+                }
+                const daysUntil = Math.ceil((next - now) / (1000 * 60 * 60 * 24));
+                const dateStr = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
+                const color = daysUntil <= 7 ? '#ef4444' : daysUntil <= 14 ? '#f59e0b' : 'var(--color-text)';
+                return (
+                  <p>
+                    <span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span>
+                    <CostBadge amount={server.monthly_cost} />
+                    <span style={{ color }}> {dateStr} ({daysUntil === 0 ? t('dashboard:today') : daysUntil === 1 ? t('dashboard:in_1_day') : t('dashboard:in_days', { count: daysUntil })})</span>
+                  </p>
+                );
+              }
+              return null;
+            })()}
+
+            {(() => {
+              // Contract status (when contract ends/renews)
+              if (!server.contract_end_date) {
+                return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_indefinite')}</p>;
+              }
+              const [ey, em, ed] = server.contract_end_date.split('-').map(Number);
+              const endDate = new Date(ey, em - 1, ed);
+              const now = new Date(); now.setHours(0, 0, 0, 0);
+              const daysUntil = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
+              if (server.auto_renew) {
+                return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_renews')}: {server.contract_end_date} ({t('dashboard:in_days', { count: daysUntil })})</p>;
+              }
+              if (daysUntil < 0) {
+                return <p style={{ color: '#ef4444' }}>{t('contracts:contract_expired')}: {server.contract_end_date}</p>;
+              }
+              return <p style={{ color: daysUntil <= 30 ? '#f59e0b' : 'var(--color-text-muted)' }}>{t('contracts:contract_expires')}: {server.contract_end_date} ({t('dashboard:in_days', { count: daysUntil })})</p>;
+            })()}
+          </div>
         </div>
       )}
 
