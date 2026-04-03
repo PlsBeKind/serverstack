@@ -29,6 +29,8 @@
   "in_1_day": "tomorrow",
   "today": "today",
   "no_upcoming": "No upcoming billing",
+  "ends_in_days": "ends in {{count}} days",
+  "ends_on": "ends {{date}}",
   "expired": "expired",
   "date_unknown": "date unknown",
   "auto_renewed": "auto-renewed",

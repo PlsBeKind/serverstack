@@ -162,8 +162,8 @@ export default function DashboardPage() {
 
               let timeLabel;
               if (isCancelled) {
-                if (b.days_until !== null && b.days_until >= 0) timeLabel = `ends ${t('in_days', { count: b.days_until })}`;
-                else if (b.date) timeLabel = `ends ${b.date}`;
+                if (b.days_until !== null && b.days_until >= 0) timeLabel = t('ends_in_days', { count: b.days_until });
+                else if (b.date) timeLabel = t('ends_on', { date: b.date });
                 else timeLabel = '';
               }
               else if (isExpired) timeLabel = t('expired');

@@ -29,6 +29,8 @@
   "in_1_day": "morgen",
   "today": "heute",
   "no_upcoming": "Keine anstehenden Abrechnungen",
+  "ends_in_days": "endet in {{count}} Tagen",
+  "ends_on": "endet am {{date}}",
   "expired": "abgelaufen",
   "date_unknown": "Datum unbekannt",
   "auto_renewed": "automatisch verl\u00e4ngert",
