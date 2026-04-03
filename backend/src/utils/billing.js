@@ -34,128 +34,146 @@ function addMonths(date, months) {
 }
 
 /**
- * Get the renewal increment in months from contract_period or billing_cycle.
+ * Get the cycle increment in months from billing_cycle.
+ */
+function getCycleMonths(billingCycle) {
+  const map = {
+    monthly: 1, quarterly: 3, 'semi-annual': 6,
+    yearly: 12, biennial: 24,
+  };
+  return map[billingCycle] || null;
+}
+
+/**
+ * Get renewal months from contract_period or billing_cycle.
  */
 function getRenewalMonths(server) {
   if (server.contract_period) {
     const match = server.contract_period.match(/^(\d+)\s*month/i);
     if (match) return parseInt(match[1]);
   }
-  const cycleMonths = {
-    monthly: 1, quarterly: 3, 'semi-annual': 6,
-    yearly: 12, biennial: 24,
-  };
-  return cycleMonths[server.billing_cycle] || null;
+  return getCycleMonths(server.billing_cycle);
 }
 
 /**
- * Roll an end_date forward by renewal periods until it's in the future.
- * Used when auto_renew=true and end_date is past.
+ * Calculate the next recurring billing date from a reference date + cycle.
+ * Advances from reference by cycle months until in the future.
  */
-function rollForward(endDate, renewalMonths) {
+function nextRecurringDate(referenceDate, cycleMonths) {
   const now = today();
-  let next = parseDate(endDate);
+  const ref = parseDate(referenceDate);
+  let next = new Date(ref);
   while (next <= now) {
-    next = addMonths(next, renewalMonths);
+    next = addMonths(next, cycleMonths);
   }
-  return formatDate(next);
+  return next;
+}
+
+/**
+ * Calculate the billing amount for one billing cycle.
+ * monthly_cost is always per month. For yearly billing, charge = monthly × 12.
+ */
+function getBillingAmount(monthlyCost, billingCycle) {
+  const multiplier = getCycleMonths(billingCycle) || 1;
+  return monthlyCost * multiplier;
 }
 
 /**
  * Calculate next billing info for a server.
  *
- * Priority:
- * 1. end_date (= end of paid period) always wins
- *    - auto_renew=true + past → roll forward (auto-renewed, NOT overdue)
- *    - auto_renew=false + past → expired (renewal needed, NOT overdue)
- *    - future → next billing date
- * 2. No end_date → calculate from start_date + billing_cycle
- * 3. No dates at all → unknown
- *
- * There is NO "overdue" concept. Past end_date is either auto-renewed or expired.
+ * KEY RULES:
+ * - For RECURRING billing (monthly/quarterly/yearly etc.):
+ *   billing date = next anniversary of start_date (or derived from end_date day)
+ *   end_date is ONLY about contract duration, NOT billing timing
+ * - For PREPAID: end_date IS the renewal date
+ * - end_date only overrides billing for prepaid
+ * - No "overdue" concept ever
  *
  * @param {object} server
- * @returns {object|null} { date, days_until, status, label }
+ * @returns {object|null}
  */
 export function getNextBillingDate(server) {
   const cost = server.monthly_cost || 0;
   if (cost <= 0) return null;
 
   const now = today();
+  const cycleMonths = getCycleMonths(server.billing_cycle);
 
   // --- PREPAID ---
   if (server.billing_cycle === 'prepaid') {
     if (!server.contract_end_date) {
-      return { date: null, days_until: null, status: 'prepaid_no_expiry', label: 'Prepaid — no expiry set' };
+      return { date: null, days_until: null, status: 'prepaid_no_expiry', label: 'Prepaid — no expiry set', amount: cost };
     }
     const end = parseDate(server.contract_end_date);
     const days = daysBetween(now, end);
     if (days < 0) {
-      return { date: server.contract_end_date, days_until: days, status: 'expired', label: `Prepaid expired ${server.contract_end_date}` };
+      return { date: server.contract_end_date, days_until: days, status: 'expired', label: `Prepaid expired ${server.contract_end_date}`, amount: cost };
     }
-    return { date: server.contract_end_date, days_until: days, status: days <= 7 ? 'due_soon' : 'prepaid_expiry', label: `Prepaid — renew by ${server.contract_end_date}` };
+    return { date: server.contract_end_date, days_until: days, status: days <= 7 ? 'due_soon' : 'prepaid_expiry', label: `Prepaid — renew by ${server.contract_end_date}`, amount: cost };
   }
 
-  // --- END_DATE SET (= end of current paid period, always wins) ---
-  if (server.contract_end_date) {
-    const end = parseDate(server.contract_end_date);
-    const days = daysBetween(now, end);
+  // --- RECURRING BILLING ---
+  const amount = getBillingAmount(cost, server.billing_cycle);
 
-    if (days < 0) {
-      // Past end_date
-      if (server.auto_renew) {
-        // Auto-renewed — roll forward to next period
-        const renewalMonths = getRenewalMonths(server);
-        if (renewalMonths) {
-          const rolledDate = rollForward(server.contract_end_date, renewalMonths);
-          const rolledDays = daysBetween(now, parseDate(rolledDate));
-          return { date: rolledDate, days_until: rolledDays, status: rolledDays <= 7 ? 'due_soon' : 'upcoming', label: `Auto-renewed — next billing ${rolledDate}` };
-        }
-        return { date: null, days_until: null, status: 'unknown_date', label: 'Auto-renews — period unknown' };
-      }
-      // Not auto-renew + past = expired (not overdue)
-      return { date: server.contract_end_date, days_until: days, status: 'expired', label: `Expired ${server.contract_end_date} — renewal needed` };
-    }
-
-    // Future end_date = next billing
-    return { date: server.contract_end_date, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${server.contract_end_date}` };
+  // Priority 1: Use start_date to calculate next billing anniversary
+  if (server.contract_start_date && cycleMonths) {
+    const next = nextRecurringDate(server.contract_start_date, cycleMonths);
+    const nextStr = formatDate(next);
+    const days = daysBetween(now, next);
+    return { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount };
   }
 
-  // --- NO END_DATE: calculate from start_date + billing_cycle ---
-  if (server.contract_start_date && server.billing_cycle) {
-    const cycleMonths = {
-      monthly: 1, quarterly: 3, 'semi-annual': 6,
-      yearly: 12, biennial: 24,
-    };
-    const months = cycleMonths[server.billing_cycle];
+  // Priority 2: No start_date but end_date exists → derive billing day from end_date
+  // Extract day-of-month from end_date, find next occurrence of that day in the cycle
+  if (server.contract_end_date && cycleMonths) {
+    const endParsed = parseDate(server.contract_end_date);
+    const billingDay = endParsed.getDate();
 
-    if (months) {
-      const start = parseDate(server.contract_start_date);
-      let next = new Date(start);
-      while (next <= now) {
-        next = addMonths(next, months);
-      }
-      const nextStr = formatDate(next);
-      const days = daysBetween(now, next);
-      return { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}` };
+    // Start from a reference point far enough in the past, then advance
+    // Use end_date minus a large multiple of cycles to establish a base
+    let ref = new Date(endParsed);
+    while (ref > now) {
+      ref = addMonths(ref, -cycleMonths);
     }
+    // Now advance forward from this past reference
+    let next = new Date(ref);
+    while (next <= now) {
+      next = addMonths(next, cycleMonths);
+    }
+    const nextStr = formatDate(next);
+    const days = daysBetween(now, next);
+    return { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount };
   }
 
-  // --- HAS COST BUT NO DATE INFO ---
-  return { date: null, days_until: null, status: 'unknown_date', label: 'Billing date unknown' };
+  // --- NO DATE INFO ---
+  return { date: null, days_until: null, status: 'unknown_date', label: 'Billing date unknown', amount };
 }
 
 /**
  * Contract status — separate from billing.
+ * end_date = when the contract itself ends/renews.
  */
 export function getContractStatus(server) {
   if (!server.contract_end_date) {
     return { status: 'indefinite', date: null, label: 'Indefinite' };
   }
 
-  const days = daysBetween(today(), parseDate(server.contract_end_date));
+  const end = parseDate(server.contract_end_date);
+  const now = today();
+  const days = daysBetween(now, end);
 
   if (server.auto_renew) {
+    // Auto-renew + past → roll forward
+    if (days < 0) {
+      const renewalMonths = getRenewalMonths(server);
+      if (renewalMonths) {
+        let next = new Date(end);
+        while (next <= now) next = addMonths(next, renewalMonths);
+        const rolledDate = formatDate(next);
+        const rolledDays = daysBetween(now, next);
+        return { status: 'renews', date: rolledDate, days_until: rolledDays, label: `Auto-renews on ${rolledDate}` };
+      }
+    }
     return { status: 'renews', date: server.contract_end_date, days_until: days, label: `Auto-renews on ${server.contract_end_date}` };
   }
 
@@ -168,7 +186,7 @@ export function getContractStatus(server) {
 
 /**
  * Get ALL servers with monthly_cost > 0, with billing info.
- * Sorted: expired first, then soonest, then unknown last.
+ * Sorted: soonest first, then unknown last.
  */
 export function getUpcomingBilling(db) {
   const servers = db.prepare(`
@@ -190,7 +208,7 @@ export function getUpcomingBilling(db) {
       server_id: server.id,
       server_name: server.name,
       provider_name: server.provider_name,
-      amount: server.monthly_cost,
+      amount: billing.amount,
       billing_date: billing.date,
       billing_cycle: server.billing_cycle,
       days_until: billing.days_until,
@@ -199,7 +217,6 @@ export function getUpcomingBilling(db) {
     });
   }
 
-  // Sort: expired first (negative days), then soonest, then unknown (null) last
   results.sort((a, b) => {
     if (a.days_until === null && b.days_until === null) return 0;
     if (a.days_until === null) return 1;

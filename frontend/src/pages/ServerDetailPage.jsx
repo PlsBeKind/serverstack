@@ -175,9 +175,10 @@ export default function ServerDetailPage() {
                 const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
                 const daysTo = (d) => Math.ceil((d - now) / (1000 * 60 * 60 * 24));
                 const timeStr = (d) => { const n = daysTo(d); return n === 0 ? t('dashboard:today') : n === 1 ? t('dashboard:in_1_day') : t('dashboard:in_days', { count: n }); };
-                const getRenewalM = () => { if (server.contract_period) { const m = server.contract_period.match(/^(\d+)\s*month/i); if (m) return parseInt(m[1]); } return { monthly: 1, quarterly: 3, 'semi-annual': 6, yearly: 12, biennial: 24 }[server.billing_cycle] || null; };
+                const cm = { monthly: 1, quarterly: 3, 'semi-annual': 6, yearly: 12, biennial: 24 }[server.billing_cycle] || null;
+                const billingAmount = server.monthly_cost * (cm || 1);
 
-                // Prepaid
+                // Prepaid: end_date is the renewal date
                 if (server.billing_cycle === 'prepaid') {
                   if (!server.contract_end_date) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')} — {t('contracts:no_billing_data')}</p>;
                   const end = parse(server.contract_end_date);
@@ -186,28 +187,22 @@ export default function ServerDetailPage() {
                   return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')} — {server.contract_end_date} ({timeStr(end)})</p>;
                 }
 
-                // end_date wins
-                if (server.contract_end_date) {
-                  const end = parse(server.contract_end_date);
-                  const d = daysTo(end);
-                  if (d < 0 && server.auto_renew) {
-                    const rm = getRenewalM();
-                    if (rm) { let next = new Date(end); while (next <= now) next = addM(next, rm); const nd = daysTo(next); const color = nd <= 7 ? '#f59e0b' : 'var(--color-text)';
-                      return <p><span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span><CostBadge amount={server.monthly_cost} /><span style={{ color }}> {fmt(next)} ({timeStr(next)})</span></p>; }
+                // Recurring: calculate from start_date, fallback to end_date day
+                if (cm) {
+                  let refDate = server.contract_start_date || server.contract_end_date;
+                  if (refDate) {
+                    let ref = parse(refDate);
+                    // If ref is in the future (derived from end_date), walk backwards first
+                    while (ref > now) ref = addM(ref, -cm);
+                    let next = new Date(ref);
+                    while (next <= now) next = addM(next, cm);
+                    const d = daysTo(next);
+                    const color = d <= 7 ? '#f59e0b' : 'var(--color-text)';
+                    return <p><span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span><CostBadge amount={billingAmount} /><span style={{ color }}> {fmt(next)} ({timeStr(next)})</span></p>;
                   }
-                  if (d < 0) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: <CostBadge amount={server.monthly_cost} /> — {t('dashboard:expired')} {server.contract_end_date}</p>;
-                  const color = d <= 7 ? '#f59e0b' : 'var(--color-text)';
-                  return <p><span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span><CostBadge amount={server.monthly_cost} /><span style={{ color }}> {server.contract_end_date} ({timeStr(end)})</span></p>;
                 }
 
-                // Fallback: start_date + billing_cycle
-                if (server.contract_start_date && server.billing_cycle) {
-                  const cm = { monthly: 1, quarterly: 3, 'semi-annual': 6, yearly: 12, biennial: 24 }[server.billing_cycle];
-                  if (cm) { let next = parse(server.contract_start_date); while (next <= now) next = addM(next, cm); const d = daysTo(next); const color = d <= 7 ? '#f59e0b' : 'var(--color-text)';
-                    return <p><span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span><CostBadge amount={server.monthly_cost} /><span style={{ color }}> {fmt(next)} ({timeStr(next)})</span></p>; }
-                }
-
-                return <p style={{ color: '#6b7280' }}><CostBadge amount={server.monthly_cost} /> — {t('contracts:no_billing_data')}</p>;
+                return <p style={{ color: '#6b7280' }}><CostBadge amount={billingAmount} /> — {t('contracts:no_billing_data')}</p>;
               })()}
 
               {/* Contract status */}
