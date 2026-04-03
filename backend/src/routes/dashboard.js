@@ -13,8 +13,10 @@ export default function dashboardRoutes(db) {
     const providerCount = db.prepare('SELECT COUNT(*) as count FROM providers').get().count;
     const serviceCount = db.prepare('SELECT COUNT(*) as count FROM services').get().count;
     const pendingAlerts = db.prepare('SELECT COUNT(*) as count FROM alerts WHERE sent = 0').get().count;
-    const upcoming = getUpcomingBilling(db, 30);
-    const upcomingBillingTotal = upcoming.reduce((sum, b) => sum + b.amount, 0);
+    const upcoming = getUpcomingBilling(db);
+    const upcomingBillingTotal = upcoming
+      .filter(b => b.days_until !== null && b.days_until >= 0 && b.days_until <= 30)
+      .reduce((sum, b) => sum + b.amount, 0);
 
     res.json({
       servers: { total: serverCount, active: activeServers },
@@ -27,8 +29,7 @@ export default function dashboardRoutes(db) {
   });
 
   router.get('/upcoming-billing', (req, res) => {
-    const days = parseInt(req.query.days) || 60;
-    const billing = getUpcomingBilling(db, days);
+    const billing = getUpcomingBilling(db);
     res.json(billing);
   });
 

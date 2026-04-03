@@ -24,5 +24,8 @@
   "in_1_day": "morgen",
   "today": "heute",
   "no_upcoming": "Keine anstehenden Abrechnungen",
+  "expired": "abgelaufen",
+  "date_unknown": "Datum unbekannt",
+  "auto_renewed": "automatisch verl\u00e4ngert",
   "cost_trend": "Kostenentwicklung (12 Monate)"
 }

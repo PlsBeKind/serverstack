@@ -24,5 +24,8 @@
   "in_1_day": "tomorrow",
   "today": "today",
   "no_upcoming": "No upcoming billing",
+  "expired": "expired",
+  "date_unknown": "date unknown",
+  "auto_renewed": "auto-renewed",
   "cost_trend": "Cost Trend (12 Months)"
 }

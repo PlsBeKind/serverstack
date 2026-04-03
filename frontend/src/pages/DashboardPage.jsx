@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Server, Building2, DollarSign, HardDrive, Cpu, Network, Bell, TrendingUp, CalendarClock } from 'lucide-react';
+import { Server, Building2, DollarSign, HardDrive, Cpu, Network, Bell, TrendingUp, CalendarClock, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { api } from '../api/client.js';
 import CostBadge from '../components/CostBadge.jsx';
@@ -144,20 +145,36 @@ export default function DashboardPage() {
           <p className="text-center py-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('no_upcoming')}</p>
         ) : (
           <div className="space-y-2">
-            {billing.slice(0, 5).map((b, i) => (
-              <div key={i} className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
-                <div className="flex items-center gap-2">
-                  <span className="font-semibold">{b.server_name}</span>
-                  {b.provider_name && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{b.provider_name}</span>}
-                </div>
-                <div className="flex items-center gap-3">
-                  <CostBadge amount={b.amount} />
-                  <span className="text-xs font-mono" style={{ color: b.days_until <= 7 ? '#ef4444' : b.days_until <= 14 ? '#f59e0b' : 'var(--color-text-muted)' }}>
-                    {b.days_until === 0 ? t('today') : b.days_until === 1 ? t('in_1_day') : t('in_days', { count: b.days_until })}
-                  </span>
-                </div>
-              </div>
-            ))}
+            {billing.slice(0, 8).map((b, i) => {
+              const isExpired = b.status === 'expired';
+              const isDueSoon = b.status === 'due_soon';
+              const isUnknown = b.status === 'unknown_date';
+              const color = isExpired ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
+
+              let timeLabel;
+              if (isExpired) timeLabel = t('expired');
+              else if (isUnknown) timeLabel = t('date_unknown');
+              else if (b.days_until === 0) timeLabel = t('today');
+              else if (b.days_until === 1) timeLabel = t('in_1_day');
+              else if (b.days_until !== null) timeLabel = t('in_days', { count: b.days_until });
+              else timeLabel = b.label;
+
+              return (
+                <Link key={i} to={`/servers/${b.server_id}/edit`}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm hover:bg-white/5 transition-colors"
+                  style={{ background: 'var(--color-surface)' }}>
+                  <div className="flex items-center gap-2">
+                    {isUnknown && <AlertTriangle size={12} style={{ color: '#6b7280' }} />}
+                    <span className="font-semibold">{b.server_name}</span>
+                    {b.provider_name && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{b.provider_name}</span>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <CostBadge amount={b.amount} />
+                    <span className="text-xs font-mono" style={{ color }}>{timeLabel}</span>
+                  </div>
+                </Link>
+              );
+            })}
           </div>
         )}
       </div>

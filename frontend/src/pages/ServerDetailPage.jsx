@@ -166,61 +166,59 @@ export default function ServerDetailPage() {
           </div>
 
           {/* Smart billing + contract status */}
-          <div className="mt-4 pt-4 space-y-2 text-sm" style={{ borderTop: '1px solid var(--color-border)' }}>
-            {(() => {
-              // Next billing (when money leaves)
-              if (server.billing_cycle === 'prepaid') {
-                return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')}{server.contract_end_date ? ` — ${server.contract_end_date}` : ''}</p>;
-              }
-              if (!server.contract_start_date || !server.billing_cycle) {
-                return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:no_billing_data')}</p>;
-              }
-              // Calculate next billing client-side from start_date + billing_cycle
-              const monthsMap = { monthly: 1, quarterly: 3, 'semi-annual': 6, yearly: 12, biennial: 24 };
-              const months = monthsMap[server.billing_cycle];
-              if (months) {
-                const [sy, sm, sd] = server.contract_start_date.split('-').map(Number);
-                let next = new Date(sy, sm - 1, sd);
+          {server.monthly_cost > 0 && (
+            <div className="mt-4 pt-4 space-y-2 text-sm" style={{ borderTop: '1px solid var(--color-border)' }}>
+              {(() => {
                 const now = new Date(); now.setHours(0, 0, 0, 0);
-                const origDay = sd;
-                while (next <= now) {
-                  const tgt = next.getMonth() + months;
-                  next = new Date(next.getFullYear(), tgt, 1);
-                  const last = new Date(next.getFullYear(), next.getMonth() + 1, 0).getDate();
-                  next.setDate(Math.min(origDay, last));
-                }
-                const daysUntil = Math.ceil((next - now) / (1000 * 60 * 60 * 24));
-                const dateStr = `${next.getFullYear()}-${String(next.getMonth() + 1).padStart(2, '0')}-${String(next.getDate()).padStart(2, '0')}`;
-                const color = daysUntil <= 7 ? '#ef4444' : daysUntil <= 14 ? '#f59e0b' : 'var(--color-text)';
-                return (
-                  <p>
-                    <span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span>
-                    <CostBadge amount={server.monthly_cost} />
-                    <span style={{ color }}> {dateStr} ({daysUntil === 0 ? t('dashboard:today') : daysUntil === 1 ? t('dashboard:in_1_day') : t('dashboard:in_days', { count: daysUntil })})</span>
-                  </p>
-                );
-              }
-              return null;
-            })()}
+                const addM = (date, m) => { const r = new Date(date); const od = r.getDate(); r.setDate(1); r.setMonth(r.getMonth() + m); const ld = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate(); r.setDate(Math.min(od, ld)); return r; };
+                const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+                const daysTo = (d) => Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+                const timeStr = (d) => { const n = daysTo(d); return n === 0 ? t('dashboard:today') : n === 1 ? t('dashboard:in_1_day') : t('dashboard:in_days', { count: n }); };
+                const getRenewalM = () => { if (server.contract_period) { const m = server.contract_period.match(/^(\d+)\s*month/i); if (m) return parseInt(m[1]); } return { monthly: 1, quarterly: 3, 'semi-annual': 6, yearly: 12, biennial: 24 }[server.billing_cycle] || null; };
 
-            {(() => {
-              // Contract status (when contract ends/renews)
-              if (!server.contract_end_date) {
-                return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_indefinite')}</p>;
-              }
-              const [ey, em, ed] = server.contract_end_date.split('-').map(Number);
-              const endDate = new Date(ey, em - 1, ed);
-              const now = new Date(); now.setHours(0, 0, 0, 0);
-              const daysUntil = Math.ceil((endDate - now) / (1000 * 60 * 60 * 24));
-              if (server.auto_renew) {
-                return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_renews')}: {server.contract_end_date} ({t('dashboard:in_days', { count: daysUntil })})</p>;
-              }
-              if (daysUntil < 0) {
-                return <p style={{ color: '#ef4444' }}>{t('contracts:contract_expired')}: {server.contract_end_date}</p>;
-              }
-              return <p style={{ color: daysUntil <= 30 ? '#f59e0b' : 'var(--color-text-muted)' }}>{t('contracts:contract_expires')}: {server.contract_end_date} ({t('dashboard:in_days', { count: daysUntil })})</p>;
-            })()}
-          </div>
+                // Prepaid
+                if (server.billing_cycle === 'prepaid') {
+                  if (!server.contract_end_date) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')} — {t('contracts:no_billing_data')}</p>;
+                  const end = parse(server.contract_end_date);
+                  const d = daysTo(end);
+                  if (d < 0) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')} — {t('dashboard:expired')} {server.contract_end_date}</p>;
+                  return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')} — {server.contract_end_date} ({timeStr(end)})</p>;
+                }
+
+                // end_date wins
+                if (server.contract_end_date) {
+                  const end = parse(server.contract_end_date);
+                  const d = daysTo(end);
+                  if (d < 0 && server.auto_renew) {
+                    const rm = getRenewalM();
+                    if (rm) { let next = new Date(end); while (next <= now) next = addM(next, rm); const nd = daysTo(next); const color = nd <= 7 ? '#f59e0b' : 'var(--color-text)';
+                      return <p><span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span><CostBadge amount={server.monthly_cost} /><span style={{ color }}> {fmt(next)} ({timeStr(next)})</span></p>; }
+                  }
+                  if (d < 0) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: <CostBadge amount={server.monthly_cost} /> — {t('dashboard:expired')} {server.contract_end_date}</p>;
+                  const color = d <= 7 ? '#f59e0b' : 'var(--color-text)';
+                  return <p><span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span><CostBadge amount={server.monthly_cost} /><span style={{ color }}> {server.contract_end_date} ({timeStr(end)})</span></p>;
+                }
+
+                // Fallback: start_date + billing_cycle
+                if (server.contract_start_date && server.billing_cycle) {
+                  const cm = { monthly: 1, quarterly: 3, 'semi-annual': 6, yearly: 12, biennial: 24 }[server.billing_cycle];
+                  if (cm) { let next = parse(server.contract_start_date); while (next <= now) next = addM(next, cm); const d = daysTo(next); const color = d <= 7 ? '#f59e0b' : 'var(--color-text)';
+                    return <p><span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span><CostBadge amount={server.monthly_cost} /><span style={{ color }}> {fmt(next)} ({timeStr(next)})</span></p>; }
+                }
+
+                return <p style={{ color: '#6b7280' }}><CostBadge amount={server.monthly_cost} /> — {t('contracts:no_billing_data')}</p>;
+              })()}
+
+              {/* Contract status */}
+              {server.contract_end_date ? (() => {
+                const d = Math.ceil((new Date(...server.contract_end_date.split('-').map((v, i) => i === 1 ? v - 1 : +v)) - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000);
+                if (server.auto_renew) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_renews')}: {server.contract_end_date}</p>;
+                if (d < 0) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_expires')}: {server.contract_end_date} — {t('dashboard:expired')}</p>;
+                return <p style={{ color: d <= 30 ? '#f59e0b' : 'var(--color-text-muted)' }}>{t('contracts:contract_expires')}: {server.contract_end_date} ({t('dashboard:in_days', { count: d })})</p>;
+              })() : <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_indefinite')}</p>}
+            </div>
+          )}
         </div>
       )}
 
