@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText, Tag } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText, Tag, DollarSign } from 'lucide-react';
 import CostBadge from '../components/CostBadge.jsx';
 import TagPill from '../components/TagPill.jsx';
 import { api } from '../api/client.js';
@@ -18,12 +18,15 @@ export default function ServerDetailPage() {
   const [credentials, setCredentials] = useState([]);
   const [revealedPws, setRevealedPws] = useState({});
   const [allTags, setAllTags] = useState([]);
+  const [costHistory, setCostHistory] = useState([]);
+  const [showPriceChange, setShowPriceChange] = useState(false);
+  const [priceForm, setPriceForm] = useState({ new_cost: '', reason: 'price_increase' });
   const [showCredForm, setShowCredForm] = useState(false);
   const [credForm, setCredForm] = useState({ label: '', username: '', password: '', notes: '' });
 
   const loadData = () => {
-    Promise.all([api.getServer(id), api.getServerServices(id), api.getServerIps(id), api.getServerDisks(id), api.getServerCredentials(id), api.getTags()])
-      .then(([s, svc, ipList, diskList, creds, tags]) => { setServer(s); setServices(svc); setIps(ipList); setDisks(diskList); setCredentials(creds); setAllTags(tags); });
+    Promise.all([api.getServer(id), api.getServerServices(id), api.getServerIps(id), api.getServerDisks(id), api.getServerCredentials(id), api.getTags(), api.getCostHistory(id)])
+      .then(([s, svc, ipList, diskList, creds, tags, history]) => { setServer(s); setServices(svc); setIps(ipList); setDisks(diskList); setCredentials(creds); setAllTags(tags); setCostHistory(history); });
   };
 
   useEffect(() => { loadData(); }, [id]);
@@ -181,6 +184,70 @@ export default function ServerDetailPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Cost History */}
+      {(costHistory.length > 0 || server.monthly_cost > 0) && (
+        <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><DollarSign size={16} style={{ color: '#f59e0b' }} /> {t('cost_history')}</h3>
+            <button onClick={() => setShowPriceChange(!showPriceChange)}
+              className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
+              {showPriceChange ? <X size={12} /> : <Plus size={12} />} {t('price_change')}
+            </button>
+          </div>
+
+          {showPriceChange && (
+            <div className="mb-4 p-4 rounded-lg space-y-3 animate-fade-in" style={{ background: 'var(--color-surface)' }}>
+              <div className="grid grid-cols-2 gap-3">
+                <input type="text" inputMode="decimal" placeholder={t('new_price')} value={priceForm.new_cost}
+                  onChange={e => setPriceForm(f => ({ ...f, new_cost: e.target.value }))}
+                  className="px-3 py-2 rounded-lg text-sm outline-none font-mono" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                <select value={priceForm.reason} onChange={e => setPriceForm(f => ({ ...f, reason: e.target.value }))}
+                  className="px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
+                  <option value="price_increase">{t('reason_price_increase')}</option>
+                  <option value="promo_start">{t('reason_promo_start')}</option>
+                  <option value="promo_end">{t('reason_promo_end')}</option>
+                  <option value="manual">{t('reason_manual')}</option>
+                </select>
+              </div>
+              <div className="flex justify-end">
+                <button onClick={async () => {
+                  if (!priceForm.new_cost) return;
+                  await api.priceChange(id, priceForm);
+                  setPriceForm({ new_cost: '', reason: 'price_increase' });
+                  setShowPriceChange(false);
+                  loadData();
+                }} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:scale-[1.02] transition-all"
+                  style={{ background: 'var(--color-primary)' }}>{t('common:actions.save')}</button>
+              </div>
+            </div>
+          )}
+
+          {costHistory.length > 0 ? (
+            <div className="space-y-2">
+              {costHistory.map(entry => {
+                const reasonColors = { price_increase: '#ef4444', promo_start: '#10b981', promo_end: '#f59e0b', manual: '#6b7280' };
+                return (
+                  <div key={entry.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+                    <span className="text-xs font-mono" style={{ color: 'var(--color-text-muted)' }}>{entry.changed_at?.split(' ')[0] || '—'}</span>
+                    <span className="font-mono" style={{ color: 'var(--color-text-muted)' }}>
+                      {entry.old_cost != null ? <CostBadge amount={entry.old_cost} /> : '—'}
+                    </span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>→</span>
+                    <CostBadge amount={entry.new_cost} />
+                    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ml-auto"
+                      style={{ background: `${reasonColors[entry.reason] || '#6b7280'}20`, color: reasonColors[entry.reason] || '#6b7280' }}>
+                      {t(`reason_${entry.reason}`, entry.reason)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
+          )}
         </div>
       )}
 

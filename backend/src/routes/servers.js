@@ -77,6 +77,35 @@ export default function serverRoutes(db) {
     res.json(ips);
   });
 
+  // --- Cost history routes ---
+
+  router.get('/:id/cost-history', (req, res) => {
+    const history = db.prepare('SELECT * FROM cost_history WHERE server_id = ? ORDER BY id DESC').all(req.params.id);
+    res.json(history);
+  });
+
+  router.post('/:id/price-change', (req, res) => {
+    const { new_cost, reason } = req.body;
+    if (new_cost === undefined || new_cost === null) {
+      return res.status(400).json({ error: 'cost_history.new_cost_required' });
+    }
+
+    const server = db.prepare('SELECT id, monthly_cost FROM servers WHERE id = ?').get(req.params.id);
+    if (!server) return res.status(404).json({ error: 'servers.not_found' });
+
+    const oldCost = server.monthly_cost || 0;
+    const parsedCost = parseFloat(String(new_cost).replace(',', '.')) || 0;
+
+    db.prepare('INSERT INTO cost_history (server_id, old_cost, new_cost, reason) VALUES (?, ?, ?, ?)')
+      .run(req.params.id, oldCost, parsedCost, reason || 'manual');
+
+    db.prepare("UPDATE servers SET monthly_cost = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(parsedCost, req.params.id);
+
+    const updated = db.prepare('SELECT * FROM cost_history WHERE server_id = ? ORDER BY id DESC').all(req.params.id);
+    res.status(201).json(updated);
+  });
+
   // --- Tag assignment routes ---
 
   router.post('/:id/tags', (req, res) => {

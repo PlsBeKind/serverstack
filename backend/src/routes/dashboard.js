@@ -32,6 +32,39 @@ export default function dashboardRoutes(db) {
     res.json(billing);
   });
 
+  router.get('/cost-trend', (req, res) => {
+    // Get total monthly cost for each of the last 12 months
+    // Uses cost_history to reconstruct what the total was at the end of each month
+    const months = [];
+    const now = new Date();
+    for (let i = 11; i >= 0; i--) {
+      const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const year = d.getFullYear();
+      const month = String(d.getMonth() + 1).padStart(2, '0');
+      const monthEnd = `${year}-${month}-${String(new Date(year, d.getMonth() + 1, 0).getDate()).padStart(2, '0')}`;
+      const label = `${year}-${month}`;
+
+      // Sum up the latest known cost per server as of that month-end
+      const total = db.prepare(`
+        SELECT COALESCE(SUM(latest_cost), 0) as total FROM (
+          SELECT ch.server_id, ch.new_cost as latest_cost
+          FROM cost_history ch
+          WHERE ch.changed_at <= ? || ' 23:59:59'
+          AND ch.id = (
+            SELECT id FROM cost_history ch2
+            WHERE ch2.server_id = ch.server_id
+            AND ch2.changed_at <= ? || ' 23:59:59'
+            ORDER BY ch2.changed_at DESC LIMIT 1
+          )
+          GROUP BY ch.server_id
+        )
+      `).get(monthEnd, monthEnd).total;
+
+      months.push({ month: label, total });
+    }
+    res.json(months);
+  });
+
   router.get('/costs', (req, res) => {
     const totalMonthlyCost = db.prepare('SELECT COALESCE(SUM(monthly_cost), 0) as total FROM servers WHERE monthly_cost > 0').get().total;
 

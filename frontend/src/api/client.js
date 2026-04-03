@@ -53,6 +53,8 @@ export const api = {
   createDisk: (serverId, data) => http.post(`/servers/${serverId}/disks`, data).then(r => r.data),
   updateDisk: (serverId, diskId, data) => http.put(`/servers/${serverId}/disks/${diskId}`, data).then(r => r.data),
   deleteDisk: (serverId, diskId) => http.delete(`/servers/${serverId}/disks/${diskId}`),
+  getCostHistory: (serverId) => http.get(`/servers/${serverId}/cost-history`).then(r => r.data),
+  priceChange: (serverId, data) => http.post(`/servers/${serverId}/price-change`, data).then(r => r.data),
   createServer: (data) => http.post('/servers', data).then(r => r.data),
   updateServer: (id, data) => http.put(`/servers/${id}`, data).then(r => r.data),
   deleteServer: (id) => http.delete(`/servers/${id}`),
@@ -80,6 +82,7 @@ export const api = {
 
   // Dashboard
   getSummary: () => http.get('/dashboard/summary').then(r => r.data),
+  getCostTrend: () => http.get('/dashboard/cost-trend').then(r => r.data),
   getUpcomingBilling: (days = 30) => http.get(`/dashboard/upcoming-billing?days=${days}`).then(r => r.data),
   getCosts: () => http.get('/dashboard/costs').then(r => r.data),
   getAlerts: () => http.get('/dashboard/alerts').then(r => r.data),

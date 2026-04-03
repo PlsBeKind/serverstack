@@ -23,5 +23,6 @@
   "in_days": "in {{count}} Tagen",
   "in_1_day": "morgen",
   "today": "heute",
-  "no_upcoming": "Keine anstehenden Abrechnungen"
+  "no_upcoming": "Keine anstehenden Abrechnungen",
+  "cost_trend": "Kostenentwicklung (12 Monate)"
 }

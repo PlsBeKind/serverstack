@@ -23,5 +23,6 @@
   "in_days": "in {{count}} days",
   "in_1_day": "tomorrow",
   "today": "today",
-  "no_upcoming": "No upcoming billing"
+  "no_upcoming": "No upcoming billing",
+  "cost_trend": "Cost Trend (12 Months)"
 }

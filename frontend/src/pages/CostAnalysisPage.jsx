@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
+import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
 import { api } from '../api/client.js';
 import CostBadge from '../components/CostBadge.jsx';
 
@@ -11,10 +11,11 @@ export default function CostAnalysisPage() {
   const { t } = useTranslation('contracts');
   const [costs, setCosts] = useState(null);
   const [servers, setServers] = useState([]);
+  const [costTrend, setCostTrend] = useState([]);
 
   useEffect(() => {
-    Promise.all([api.getCosts(), api.getServers()])
-      .then(([c, s]) => { setCosts(c); setServers(s); });
+    Promise.all([api.getCosts(), api.getServers(), api.getCostTrend()])
+      .then(([c, s, trend]) => { setCosts(c); setServers(s); setCostTrend(trend); });
   }, []);
 
   if (!costs) return <div className="text-center py-16 opacity-50">{t('common:actions.loading')}</div>;
@@ -64,6 +65,22 @@ export default function CostAnalysisPage() {
                 {costs.by_provider.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
               </Bar>
             </BarChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
+      {costTrend.length > 0 && (
+        <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>
+            {t('common:dashboard.cost_trend', 'Cost Trend (12 Months)')}
+          </h3>
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={costTrend}>
+              <XAxis dataKey="month" tick={{ fill: '#94a3b8', fontSize: 11 }} />
+              <YAxis tick={{ fill: '#94a3b8', fontSize: 12 }} />
+              <Tooltip contentStyle={{ background: '#0f172a', border: '1px solid #334155', borderRadius: '8px', fontSize: '12px', color: '#f1f5f9' }} itemStyle={{ color: '#f1f5f9' }} labelStyle={{ color: '#f1f5f9' }} />
+              <Line type="monotone" dataKey="total" stroke="#10b981" strokeWidth={2} dot={{ fill: '#10b981', r: 4 }} activeDot={{ r: 6 }} />
+            </LineChart>
           </ResponsiveContainer>
         </div>
       )}
