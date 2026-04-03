@@ -123,6 +123,12 @@ export default function dashboardRoutes(db) {
     const diskCosts = db.prepare('SELECT COALESCE(SUM(monthly_cost), 0) as total FROM server_disks WHERE monthly_cost IS NOT NULL').get().total;
     const totalIps = db.prepare('SELECT COUNT(*) as count FROM ip_addresses').get().count;
 
+    // IP breakdown: single IPs vs subnets, by version
+    const ipv4_single = db.prepare("SELECT COUNT(*) as count FROM ip_addresses WHERE version = 'ipv4' AND address NOT LIKE '%/%'").get().count;
+    const ipv4_subnets = db.prepare("SELECT COUNT(*) as count FROM ip_addresses WHERE version = 'ipv4' AND address LIKE '%/%'").get().count;
+    const ipv6_single = db.prepare("SELECT COUNT(*) as count FROM ip_addresses WHERE version = 'ipv6' AND address NOT LIKE '%/%'").get().count;
+    const ipv6_subnets = db.prepare("SELECT COUNT(*) as count FROM ip_addresses WHERE version = 'ipv6' AND address LIKE '%/%'").get().count;
+
     const serversByOs = db.prepare(`
       SELECT os, COUNT(*) as count FROM servers WHERE os IS NOT NULL GROUP BY os ORDER BY count DESC
     `).all();
@@ -137,6 +143,10 @@ export default function dashboardRoutes(db) {
       total_storage_gb: totalStorage,
       disk_monthly_costs: diskCosts,
       total_ips: totalIps,
+      ipv4_addresses: ipv4_single,
+      ipv4_subnets: ipv4_subnets,
+      ipv6_addresses: ipv6_single,
+      ipv6_subnets: ipv6_subnets,
       by_os: serversByOs,
       by_location: serversByLocation,
     });

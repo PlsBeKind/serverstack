@@ -108,6 +108,14 @@ export default function DashboardPage() {
               <div className="flex-1">
                 <p className="text-sm">{t('total_ips')}</p>
                 <p className="text-lg font-bold font-mono">{resources?.total_ips || 0}</p>
+                {resources && (resources.ipv4_addresses > 0 || resources.ipv6_addresses > 0) && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    {resources.ipv4_addresses > 0 && <span>{resources.ipv4_addresses} {t('ipv4_addresses')}</span>}
+                    {resources.ipv4_subnets > 0 && <span>{resources.ipv4_subnets} {t('ipv4_subnets')}</span>}
+                    {resources.ipv6_addresses > 0 && <span>{resources.ipv6_addresses} {t('ipv6_addresses')}</span>}
+                    {resources.ipv6_subnets > 0 && <span>{resources.ipv6_subnets} {t('ipv6_subnets')}</span>}
+                  </div>
+                )}
               </div>
             </div>
           </div>
