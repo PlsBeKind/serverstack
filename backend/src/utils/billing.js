@@ -131,14 +131,21 @@ export function getNextBillingDate(server) {
   }
 
   // --- RECURRING BILLING ---
-  const amount = getBillingAmount(cost, server.billing_cycle);
+  // Determine effective cost: if pending price change takes effect before billing date, use new price
+  function getEffectiveAmount(billingDateStr) {
+    let effectiveCost = cost;
+    if (server.pending_cost && server.pending_cost_date && billingDateStr >= server.pending_cost_date) {
+      effectiveCost = server.pending_cost;
+    }
+    return getBillingAmount(effectiveCost, server.billing_cycle);
+  }
 
   // Priority 1: Use start_date to calculate next billing anniversary
   if (server.contract_start_date && cycleMonths) {
     const next = nextRecurringDate(server.contract_start_date, cycleMonths);
     const nextStr = formatDate(next);
     const days = daysBetween(now, next);
-    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount });
+    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount: getEffectiveAmount(nextStr) });
   }
 
   // Priority 2: No start_date but end_date exists → derive billing day from end_date
@@ -160,11 +167,12 @@ export function getNextBillingDate(server) {
     }
     const nextStr = formatDate(next);
     const days = daysBetween(now, next);
-    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount });
+    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount: getEffectiveAmount(nextStr) });
   }
 
   // --- NO DATE INFO ---
-  return markCancelled(server, { date: null, days_until: null, status: 'unknown_date', label: 'Billing date unknown', amount });
+  const unknownAmount = getBillingAmount(server.pending_cost || cost, server.billing_cycle);
+  return markCancelled(server, { date: null, days_until: null, status: 'unknown_date', label: 'Billing date unknown', amount: unknownAmount });
 }
 
 function markCancelled(server, result) {
