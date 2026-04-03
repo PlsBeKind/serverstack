@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Plus, Trash2, Network, ChevronDown, ChevronRight, FileText } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Network, HardDrive, ChevronDown, ChevronRight, FileText } from 'lucide-react';
 import { api } from '../api/client.js';
 
 const inputStyle = { background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text)' };
@@ -25,7 +25,7 @@ export default function ServerFormPage() {
   const [providers, setProviders] = useState([]);
   const [form, setForm] = useState({
     provider_id: '', name: '', type: '', hostname: '', location: '', os: '',
-    cpu_cores: '', ram_mb: '', storage_gb: '', storage_type: '', status: 'active',
+    cpu_cores: '', ram_mb: '', status: 'active',
     notes: '', ssh_user: '', ssh_port: '22', ssh_public_key: '', ssh_host_key: '',
     contract_number: '', monthly_cost: '', regular_cost: '', billing_cycle: 'monthly',
     contract_start_date: '', contract_end_date: '', cancellation_period_days: '30',
@@ -33,6 +33,8 @@ export default function ServerFormPage() {
     contract_period: '', is_cancelled: false, contract_notes: '',
   });
   const [ramUnit, setRamUnit] = useState('GB');
+  const [disks, setDisks] = useState([]);
+  const [existingDisks, setExistingDisks] = useState([]);
   const [ips, setIps] = useState([]);
   const [existingIps, setExistingIps] = useState([]);
   const [showContract, setShowContract] = useState(false);
@@ -50,13 +52,14 @@ export default function ServerFormPage() {
         setForm(prev => ({
           ...prev, ...s,
           cpu_cores: s.cpu_cores || '', ram_mb: isCleanGb ? ramVal / 1024 : ramVal,
-          storage_gb: s.storage_gb || '', ssh_port: s.ssh_port || '22',
+          ssh_port: s.ssh_port || '22',
           monthly_cost: s.monthly_cost || '', regular_cost: s.regular_cost || '',
           cancellation_period_days: s.cancellation_period_days || '30',
           auto_renew: !!s.auto_renew, promo_price: !!s.promo_price, is_cancelled: !!s.is_cancelled,
         }));
       });
       api.getServerIps(id).then(setExistingIps);
+      api.getServerDisks(id).then(setExistingDisks);
     }
   }, [id, isEdit]);
 
@@ -64,6 +67,11 @@ export default function ServerFormPage() {
     const { name, value, type, checked } = e.target;
     setForm(f => ({ ...f, [name]: type === 'checkbox' ? checked : value }));
   };
+
+  const addDiskRow = () => setDisks([...disks, { label: '', size_gb: '', type: 'ssd', monthly_cost: '' }]);
+  const updateDiskRow = (i, field, value) => setDisks(disks.map((d, idx) => idx === i ? { ...d, [field]: value } : d));
+  const removeDiskRow = (i) => setDisks(disks.filter((_, idx) => idx !== i));
+  const deleteExistingDisk = async (diskId) => { await api.deleteDisk(id, diskId); setExistingDisks(existingDisks.filter(d => d.id !== diskId)); };
 
   const addIpRow = () => setIps([...ips, { address: '', type: 'primary', rdns: '' }]);
   const updateIpRow = (index, field, value) => setIps(ips.map((ip, i) => i === index ? { ...ip, [field]: value } : ip));
@@ -80,7 +88,6 @@ export default function ServerFormPage() {
       provider_id: Number(form.provider_id),
       cpu_cores: form.cpu_cores ? Number(form.cpu_cores) : null,
       ram_mb: form.ram_mb ? (ramUnit === 'GB' ? Number(form.ram_mb) * 1024 : Number(form.ram_mb)) : null,
-      storage_gb: form.storage_gb ? Number(form.storage_gb) : null,
       ssh_port: form.ssh_port ? Number(form.ssh_port) : 22,
       monthly_cost: parseFloat(String(form.monthly_cost).replace(',', '.')) || 0,
       regular_cost: form.regular_cost ? parseFloat(String(form.regular_cost).replace(',', '.')) : null,
@@ -96,6 +103,14 @@ export default function ServerFormPage() {
       for (const ip of validIps) {
         const version = ip.address.includes(':') ? 'ipv6' : 'ipv4';
         await api.createIp({ server_id: serverId, ...ip, version });
+      }
+
+      const validDisks = disks.filter(d => d.size_gb);
+      for (const d of validDisks) {
+        await api.createDisk(serverId, {
+          ...d, size_gb: Number(d.size_gb),
+          monthly_cost: d.monthly_cost ? parseFloat(String(d.monthly_cost).replace(',', '.')) : null,
+        });
       }
 
       navigate(`/servers/${serverId}`);
@@ -149,7 +164,7 @@ export default function ServerFormPage() {
           <Field name="os" label={t('os')} value={form.os} onChange={handleChange} />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <Field name="cpu_cores" label={t('cpu_cores')} value={form.cpu_cores} onChange={handleChange} type="number" />
           <div>
             <div className="flex items-center justify-between mb-1.5">
@@ -165,17 +180,6 @@ export default function ServerFormPage() {
             <input name="ram_mb" type="number" value={form.ram_mb || ''} onChange={handleChange}
               className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} />
           </div>
-          <Field name="storage_gb" label={t('storage_gb')} value={form.storage_gb} onChange={handleChange} type="number" />
-          <div>
-            <label className="block text-xs font-medium mb-1.5 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('storage_type')}</label>
-            <select name="storage_type" value={form.storage_type || ''} onChange={handleChange}
-              className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle}>
-              <option value="">—</option>
-              <option value="nvme">NVMe</option>
-              <option value="ssd">SSD</option>
-              <option value="hdd">HDD</option>
-            </select>
-          </div>
         </div>
 
         <div>
@@ -186,6 +190,62 @@ export default function ServerFormPage() {
             <option value="inactive">{t('common:status.inactive')}</option>
             <option value="suspended">{t('common:status.suspended')}</option>
           </select>
+        </div>
+
+        <hr style={{ borderColor: 'var(--color-border)' }} />
+
+        {/* Storage Disks */}
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <HardDrive size={16} style={{ color: '#8b5cf6' }} /> {t('disks')}
+            </h3>
+            <button type="button" onClick={addDiskRow} className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
+              <Plus size={12} /> {t('add_disk')}
+            </button>
+          </div>
+
+          {existingDisks.map(d => (
+            <div key={d.id} className="flex items-center gap-2 mb-2 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+              {d.label && <span className="font-medium">{d.label}</span>}
+              <span className="font-mono">{d.size_gb} GB</span>
+              <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-text-muted)' }}>{d.type}</span>
+              {d.monthly_cost && <span className="text-xs font-mono" style={{ color: 'var(--color-warning)' }}>+{d.monthly_cost}/mo</span>}
+              <button type="button" onClick={() => deleteExistingDisk(d.id)} className="ml-auto p-1 rounded hover:bg-white/5" style={{ color: 'var(--color-danger)' }}><Trash2 size={12} /></button>
+            </div>
+          ))}
+
+          {disks.map((d, i) => (
+            <div key={i} className="grid grid-cols-[1fr_auto_auto_auto_auto] gap-2 mb-2 items-end">
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('disk_label')}</label>}
+                <input value={d.label} onChange={e => updateDiskRow(i, 'label', e.target.value)} placeholder="Boot, Data..."
+                  className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle} />
+              </div>
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('disk_size')}</label>}
+                <input type="number" value={d.size_gb} onChange={e => updateDiskRow(i, 'size_gb', e.target.value)} placeholder="512"
+                  className="w-20 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
+              </div>
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('disk_type')}</label>}
+                <select value={d.type} onChange={e => updateDiskRow(i, 'type', e.target.value)}
+                  className="px-2 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                  <option value="nvme">NVMe</option>
+                  <option value="ssd">SSD</option>
+                  <option value="hdd">HDD</option>
+                </select>
+              </div>
+              <div>
+                {i === 0 && <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('disk_cost')}</label>}
+                <input type="text" inputMode="decimal" value={d.monthly_cost} onChange={e => updateDiskRow(i, 'monthly_cost', e.target.value)} placeholder="0.00"
+                  className="w-20 px-3 py-2 rounded-lg text-sm outline-none focus:ring-2 font-mono" style={inputStyle} />
+              </div>
+              <button type="button" onClick={() => removeDiskRow(i)} className="p-2 rounded-lg hover:bg-white/5 mb-0.5" style={{ color: 'var(--color-danger)' }}><Trash2 size={14} /></button>
+            </div>
+          ))}
+
+          {disks.length === 0 && existingDisks.length === 0 && <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>}
         </div>
 
         <hr style={{ borderColor: 'var(--color-border)' }} />

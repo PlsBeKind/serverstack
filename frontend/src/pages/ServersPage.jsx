@@ -4,15 +4,26 @@ import { useTranslation } from 'react-i18next';
 import { Plus, Search, Server, ExternalLink } from 'lucide-react';
 import { api } from '../api/client.js';
 import StatusBadge from '../components/StatusBadge.jsx';
+import TagPill from '../components/TagPill.jsx';
 
 export default function ServersPage() {
   const { t } = useTranslation('servers');
   const [servers, setServers] = useState([]);
+  const [allTags, setAllTags] = useState([]);
+  const [activeTag, setActiveTag] = useState('');
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
 
+  const loadServers = (tag) => {
+    const url = tag ? `?tag=${tag}` : '';
+    api.getServers().then(data => {
+      setServers(tag ? data.filter(s => s.tags?.some(t => t.name === tag)) : data);
+    }).finally(() => setLoading(false));
+  };
+
   useEffect(() => {
-    api.getServers().then(setServers).finally(() => setLoading(false));
+    loadServers(activeTag);
+    api.getTags().then(setAllTags);
   }, []);
 
   const filtered = servers.filter(s =>
@@ -31,6 +42,26 @@ export default function ServersPage() {
           <Plus size={16} /> {t('add_server')}
         </Link>
       </div>
+
+      {/* Tag filter */}
+      {allTags.length > 0 && (
+        <div className="flex flex-wrap gap-1.5">
+          <button onClick={() => { setActiveTag(''); loadServers(''); }}
+            className={`px-2.5 py-1 rounded-full text-xs font-medium transition-all ${!activeTag ? 'text-white' : 'hover:bg-white/5'}`}
+            style={!activeTag ? { background: 'var(--color-primary)' } : { color: 'var(--color-text-muted)' }}>
+            All
+          </button>
+          {allTags.map(tag => (
+            <button key={tag.id} onClick={() => { setActiveTag(tag.name); loadServers(tag.name); }}
+              className="px-2.5 py-1 rounded-full text-xs font-medium transition-all"
+              style={activeTag === tag.name
+                ? { background: `${tag.color}30`, color: tag.color, border: `1px solid ${tag.color}` }
+                : { color: 'var(--color-text-muted)', border: '1px solid transparent' }}>
+              {tag.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="relative">
         <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2" style={{ color: 'var(--color-text-muted)' }} />
@@ -67,9 +98,13 @@ export default function ServersPage() {
                 <div className="flex gap-4 pt-2">
                   {server.cpu_cores && <span className="font-mono">{server.cpu_cores} {t('cpu_cores')}</span>}
                   {server.ram_mb && <span className="font-mono">{server.ram_mb} MB</span>}
-                  {server.storage_gb && <span className="font-mono">{server.storage_gb} GB</span>}
                 </div>
               </div>
+              {server.tags?.length > 0 && (
+                <div className="flex flex-wrap gap-1 pt-2">
+                  {server.tags.map(tag => <TagPill key={tag.id} tag={tag} />)}
+                </div>
+              )}
               <div className="mt-3 pt-3 flex items-center gap-1 text-xs opacity-0 group-hover:opacity-100 transition-opacity"
                 style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-primary)' }}>
                 <ExternalLink size={12} /> {t('server_detail')}

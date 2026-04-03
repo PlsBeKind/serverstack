@@ -100,4 +100,41 @@ describe('Server Routes', () => {
     const res = await request(app).delete(`/api/v1/servers/${created.body.id}/credentials/${cred.body.id}`).set(auth());
     expect(res.status).toBe(204);
   });
+
+  // Disk tests
+  it('should add disks to a server', async () => {
+    const created = await request(app).post('/api/v1/servers').set(auth()).send({ provider_id: providerId, name: 'VPS' });
+    const res = await request(app).post(`/api/v1/servers/${created.body.id}/disks`).set(auth()).send({
+      label: 'Boot', size_gb: 256, type: 'nvme'
+    });
+    expect(res.status).toBe(201);
+    expect(res.body.label).toBe('Boot');
+    expect(res.body.size_gb).toBe(256);
+    expect(res.body.type).toBe('nvme');
+  });
+
+  it('should list disks for a server', async () => {
+    const created = await request(app).post('/api/v1/servers').set(auth()).send({ provider_id: providerId, name: 'VPS' });
+    await request(app).post(`/api/v1/servers/${created.body.id}/disks`).set(auth()).send({ size_gb: 256, type: 'nvme', label: 'Boot' });
+    await request(app).post(`/api/v1/servers/${created.body.id}/disks`).set(auth()).send({ size_gb: 2000, type: 'hdd', label: 'Data', monthly_cost: 5.99 });
+
+    const res = await request(app).get(`/api/v1/servers/${created.body.id}/disks`).set(auth());
+    expect(res.body).toHaveLength(2);
+  });
+
+  it('should delete a disk', async () => {
+    const created = await request(app).post('/api/v1/servers').set(auth()).send({ provider_id: providerId, name: 'VPS' });
+    const disk = await request(app).post(`/api/v1/servers/${created.body.id}/disks`).set(auth()).send({ size_gb: 256, type: 'ssd' });
+    const res = await request(app).delete(`/api/v1/servers/${created.body.id}/disks/${disk.body.id}`).set(auth());
+    expect(res.status).toBe(204);
+  });
+
+  it('should cascade delete disks when server is deleted', async () => {
+    const created = await request(app).post('/api/v1/servers').set(auth()).send({ provider_id: providerId, name: 'VPS' });
+    await request(app).post(`/api/v1/servers/${created.body.id}/disks`).set(auth()).send({ size_gb: 256, type: 'nvme' });
+    await request(app).delete(`/api/v1/servers/${created.body.id}`).set(auth());
+
+    const count = db.prepare('SELECT COUNT(*) as c FROM server_disks').get().c;
+    expect(count).toBe(0);
+  });
 });

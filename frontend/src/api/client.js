@@ -49,6 +49,12 @@ export const api = {
   createCredential: (serverId, data) => http.post(`/servers/${serverId}/credentials`, data).then(r => r.data),
   updateCredential: (serverId, credId, data) => http.put(`/servers/${serverId}/credentials/${credId}`, data).then(r => r.data),
   deleteCredential: (serverId, credId) => http.delete(`/servers/${serverId}/credentials/${credId}`),
+  getServerDisks: (id) => http.get(`/servers/${id}/disks`).then(r => r.data),
+  createDisk: (serverId, data) => http.post(`/servers/${serverId}/disks`, data).then(r => r.data),
+  updateDisk: (serverId, diskId, data) => http.put(`/servers/${serverId}/disks/${diskId}`, data).then(r => r.data),
+  deleteDisk: (serverId, diskId) => http.delete(`/servers/${serverId}/disks/${diskId}`),
+  getCostHistory: (serverId) => http.get(`/servers/${serverId}/cost-history`).then(r => r.data),
+  priceChange: (serverId, data) => http.post(`/servers/${serverId}/price-change`, data).then(r => r.data),
   createServer: (data) => http.post('/servers', data).then(r => r.data),
   updateServer: (id, data) => http.put(`/servers/${id}`, data).then(r => r.data),
   deleteServer: (id) => http.delete(`/servers/${id}`),
@@ -62,13 +68,25 @@ export const api = {
   deleteIp: (id) => http.delete(`/ips/${id}`),
 
   // Services
-  getServices: () => http.get('/services').then(r => r.data),
+  getServices: (params = {}) => {
+    const query = new URLSearchParams(params).toString();
+    return http.get(`/services${query ? '?' + query : ''}`).then(r => r.data);
+  },
   createService: (data) => http.post('/services', data).then(r => r.data),
   updateService: (id, data) => http.put(`/services/${id}`, data).then(r => r.data),
   deleteService: (id) => http.delete(`/services/${id}`),
 
+  // Tags
+  getTags: () => http.get('/tags').then(r => r.data),
+  createTag: (data) => http.post('/tags', data).then(r => r.data),
+  deleteTag: (id) => http.delete(`/tags/${id}`),
+  assignTag: (serverId, tagId) => http.post(`/servers/${serverId}/tags`, { tag_id: tagId }).then(r => r.data),
+  removeTag: (serverId, tagId) => http.delete(`/servers/${serverId}/tags/${tagId}`),
+
   // Dashboard
   getSummary: () => http.get('/dashboard/summary').then(r => r.data),
+  getCostTrend: () => http.get('/dashboard/cost-trend').then(r => r.data),
+  getUpcomingBilling: (days = 30) => http.get(`/dashboard/upcoming-billing?days=${days}`).then(r => r.data),
   getCosts: () => http.get('/dashboard/costs').then(r => r.data),
   getAlerts: () => http.get('/dashboard/alerts').then(r => r.data),
   markAlertRead: (id) => http.put(`/dashboard/alerts/${id}/read`).then(r => r.data),

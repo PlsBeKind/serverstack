@@ -13,14 +13,15 @@ export default function exportRoutes(db) {
       ip_addresses: db.prepare('SELECT * FROM ip_addresses').all(),
       services: db.prepare('SELECT * FROM services').all(),
       server_credentials: db.prepare('SELECT id, server_id, label, username, notes, created_at FROM server_credentials').all(),
+      server_disks: db.prepare('SELECT * FROM server_disks').all(),
       exported_at: new Date().toISOString(),
-      version: '1.1.0',
+      version: '1.2.0',
     };
     res.json(data);
   });
 
   router.post('/import', (req, res) => {
-    const { providers, servers, ip_addresses, services, server_credentials } = req.body;
+    const { providers, servers, ip_addresses, services, server_credentials, server_disks } = req.body;
 
     if (!providers || !servers) {
       return res.status(400).json({ error: 'export.invalid_format' });
@@ -29,7 +30,7 @@ export default function exportRoutes(db) {
     const importData = db.transaction(() => {
       const providerMap = {};
       const serverMap = {};
-      let importedCount = { providers: 0, servers: 0, ip_addresses: 0, services: 0, server_credentials: 0 };
+      let importedCount = { providers: 0, servers: 0, ip_addresses: 0, services: 0, server_credentials: 0, server_disks: 0 };
 
       for (const p of providers) {
         const existing = db.prepare('SELECT id FROM providers WHERE name = ?').get(p.name);
@@ -89,6 +90,16 @@ export default function exportRoutes(db) {
           db.prepare('INSERT INTO server_credentials (server_id, label, username, notes) VALUES (?, ?, ?, ?)')
             .run(mappedServerId, cred.label, cred.username, cred.notes);
           importedCount.server_credentials++;
+        }
+      }
+
+      if (server_disks) {
+        for (const disk of server_disks) {
+          const mappedServerId = serverMap[disk.server_id];
+          if (!mappedServerId) continue;
+          db.prepare('INSERT INTO server_disks (server_id, label, size_gb, type, monthly_cost, notes) VALUES (?, ?, ?, ?, ?, ?)')
+            .run(mappedServerId, disk.label, disk.size_gb, disk.type, disk.monthly_cost, disk.notes);
+          importedCount.server_disks++;
         }
       }
 

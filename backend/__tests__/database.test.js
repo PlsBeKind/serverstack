@@ -13,6 +13,7 @@ describe('Database', () => {
     expect(tables).toContain('providers');
     expect(tables).toContain('servers');
     expect(tables).toContain('server_credentials');
+    expect(tables).toContain('server_disks');
     expect(tables).toContain('ip_addresses');
     expect(tables).toContain('services');
     expect(tables).toContain('alerts');

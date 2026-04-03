@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, Plus, X, FileText } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText, Tag, DollarSign } from 'lucide-react';
 import CostBadge from '../components/CostBadge.jsx';
+import TagPill from '../components/TagPill.jsx';
 import { api } from '../api/client.js';
 import StatusBadge from '../components/StatusBadge.jsx';
 
@@ -13,14 +14,21 @@ export default function ServerDetailPage() {
   const [server, setServer] = useState(null);
   const [services, setServices] = useState([]);
   const [ips, setIps] = useState([]);
+  const [disks, setDisks] = useState([]);
   const [credentials, setCredentials] = useState([]);
   const [revealedPws, setRevealedPws] = useState({});
+  const [allTags, setAllTags] = useState([]);
+  const [costHistory, setCostHistory] = useState([]);
+  const [showPriceChange, setShowPriceChange] = useState(false);
+  const [priceForm, setPriceForm] = useState({ new_cost: '', reason: 'price_increase' });
+  const [showSvcForm, setShowSvcForm] = useState(false);
+  const [svcForm, setSvcForm] = useState({ name: '', category: '', port: '', url: '', domain: '', protocol: 'tcp', docker: false, notes: '' });
   const [showCredForm, setShowCredForm] = useState(false);
   const [credForm, setCredForm] = useState({ label: '', username: '', password: '', notes: '' });
 
   const loadData = () => {
-    Promise.all([api.getServer(id), api.getServerServices(id), api.getServerIps(id), api.getServerCredentials(id)])
-      .then(([s, svc, ipList, creds]) => { setServer(s); setServices(svc); setIps(ipList); setCredentials(creds); });
+    Promise.all([api.getServer(id), api.getServerServices(id), api.getServerIps(id), api.getServerDisks(id), api.getServerCredentials(id), api.getTags(), api.getCostHistory(id)])
+      .then(([s, svc, ipList, diskList, creds, tags, history]) => { setServer(s); setServices(svc); setIps(ipList); setDisks(diskList); setCredentials(creds); setAllTags(tags); setCostHistory(history); });
   };
 
   useEffect(() => { loadData(); }, [id]);
@@ -59,8 +67,6 @@ export default function ServerDetailPage() {
     ['name', server.name], ['type', server.type], ['hostname', server.hostname],
     ['provider', server.provider_name], ['location', server.location], ['os', server.os],
     ['cpu_cores', server.cpu_cores], ['ram_mb', server.ram_mb ? `${server.ram_mb} MB` : null],
-    ['storage_gb', server.storage_gb ? `${server.storage_gb} GB` : null],
-    ['storage_type', server.storage_type],
     ['ssh_user', server.ssh_user], ['ssh_port', server.ssh_port],
   ].filter(([_, v]) => v != null);
 
@@ -92,6 +98,28 @@ export default function ServerDetailPage() {
             <p className="text-sm whitespace-pre-wrap">{server.notes}</p>
           </div>
         )}
+      </div>
+
+      {/* Tags */}
+      <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+        <h3 className="flex items-center gap-2 text-sm font-semibold mb-3"><Tag size={16} style={{ color: 'var(--color-primary)' }} /> {t('tags')}</h3>
+        <div className="flex flex-wrap items-center gap-2">
+          {server.tags?.map(tag => (
+            <TagPill key={tag.id} tag={tag} onRemove={async (tagId) => { await api.removeTag(id, tagId); loadData(); }} />
+          ))}
+          {(() => {
+            const assignedIds = new Set(server.tags?.map(t => t.id) || []);
+            const available = allTags.filter(t => !assignedIds.has(t.id));
+            if (available.length === 0) return null;
+            return (
+              <select onChange={async (e) => { if (e.target.value) { await api.assignTag(id, Number(e.target.value)); loadData(); e.target.value = ''; } }}
+                className="px-2 py-1 rounded-lg text-xs outline-none" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
+                <option value="">+ {t('add_tag')}</option>
+                {available.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+              </select>
+            );
+          })()}
+        </div>
       </div>
 
       {/* Contract info */}
@@ -136,6 +164,142 @@ export default function ServerDetailPage() {
             {server.is_cancelled ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>{t('contracts:is_cancelled')}</span> : null}
             {server.auto_renew ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#064e3b', color: '#10b981' }}>{t('contracts:auto_renew')}</span> : null}
           </div>
+
+          {/* Smart billing + contract status */}
+          {server.monthly_cost > 0 && (
+            <div className="mt-4 pt-4 space-y-2 text-sm" style={{ borderTop: '1px solid var(--color-border)' }}>
+              {!server.is_cancelled && (() => {
+                const now = new Date(); now.setHours(0, 0, 0, 0);
+                const addM = (date, m) => { const r = new Date(date); const od = r.getDate(); r.setDate(1); r.setMonth(r.getMonth() + m); const ld = new Date(r.getFullYear(), r.getMonth() + 1, 0).getDate(); r.setDate(Math.min(od, ld)); return r; };
+                const fmt = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const parse = (s) => { const [y, m, d] = s.split('-').map(Number); return new Date(y, m - 1, d); };
+                const daysTo = (d) => Math.ceil((d - now) / (1000 * 60 * 60 * 24));
+                const timeStr = (d) => { const n = daysTo(d); return n === 0 ? t('dashboard:today') : n === 1 ? t('dashboard:in_1_day') : t('dashboard:in_days', { count: n }); };
+                const cm = { monthly: 1, quarterly: 3, 'semi-annual': 6, yearly: 12, biennial: 24 }[server.billing_cycle] || null;
+                const billingAmount = server.monthly_cost * (cm || 1);
+
+                // Prepaid: end_date is the renewal date
+                if (server.billing_cycle === 'prepaid') {
+                  if (!server.contract_end_date) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')} — {t('contracts:no_billing_data')}</p>;
+                  const end = parse(server.contract_end_date);
+                  const d = daysTo(end);
+                  if (d < 0) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')} — {t('dashboard:expired')} {server.contract_end_date}</p>;
+                  return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:prepaid')} — {server.contract_end_date} ({timeStr(end)})</p>;
+                }
+
+                // Recurring: calculate from start_date, fallback to end_date day
+                if (cm) {
+                  let refDate = server.contract_start_date || server.contract_end_date;
+                  if (refDate) {
+                    let ref = parse(refDate);
+                    // If ref is in the future (derived from end_date), walk backwards first
+                    while (ref > now) ref = addM(ref, -cm);
+                    let next = new Date(ref);
+                    while (next <= now) next = addM(next, cm);
+                    const d = daysTo(next);
+                    const color = d <= 7 ? '#f59e0b' : 'var(--color-text)';
+                    return <p><span style={{ color: 'var(--color-text-muted)' }}>{t('contracts:next_billing')}: </span><CostBadge amount={billingAmount} /><span style={{ color }}> {fmt(next)} ({timeStr(next)})</span></p>;
+                  }
+                }
+
+                return <p style={{ color: '#6b7280' }}><CostBadge amount={billingAmount} /> — {t('contracts:no_billing_data')}</p>;
+              })()}
+
+              {/* Contract status */}
+              {server.contract_end_date ? (() => {
+                const d = Math.ceil((new Date(...server.contract_end_date.split('-').map((v, i) => i === 1 ? v - 1 : +v)) - new Date(new Date().setHours(0, 0, 0, 0))) / 86400000);
+                if (server.auto_renew) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_renews')}: {server.contract_end_date}</p>;
+                if (d < 0) return <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_expires')}: {server.contract_end_date} — {t('dashboard:expired')}</p>;
+                return <p style={{ color: d <= 30 ? '#f59e0b' : 'var(--color-text-muted)' }}>{t('contracts:contract_expires')}: {server.contract_end_date} ({t('dashboard:in_days', { count: d })})</p>;
+              })() : <p style={{ color: 'var(--color-text-muted)' }}>{t('contracts:contract_indefinite')}</p>}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Disks */}
+      {disks.length > 0 && (
+        <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <h3 className="flex items-center gap-2 text-sm font-semibold mb-4">
+            <HardDrive size={16} style={{ color: '#8b5cf6' }} /> {t('disks')}
+            <span className="ml-auto text-xs font-mono" style={{ color: 'var(--color-text-muted)' }}>
+              {disks.reduce((s, d) => s + (d.size_gb || 0), 0)} GB
+            </span>
+          </h3>
+          <div className="space-y-2">
+            {disks.map(d => (
+              <div key={d.id} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+                {d.label && <span className="font-medium">{d.label}</span>}
+                <span className="font-mono">{d.size_gb} GB</span>
+                <span className="text-xs px-1.5 py-0.5 rounded uppercase" style={{ background: 'var(--color-surface-overlay)', color: 'var(--color-text-muted)' }}>{d.type}</span>
+                {d.monthly_cost && <span className="text-xs font-mono" style={{ color: 'var(--color-warning)' }}>+{d.monthly_cost}/mo</span>}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Cost History */}
+      {(costHistory.length > 0 || server.monthly_cost > 0) && (
+        <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="flex items-center gap-2 text-sm font-semibold"><DollarSign size={16} style={{ color: '#f59e0b' }} /> {t('cost_history')}</h3>
+            <button onClick={() => setShowPriceChange(!showPriceChange)}
+              className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
+              {showPriceChange ? <X size={12} /> : <Plus size={12} />} {t('price_change')}
+            </button>
+          </div>
+
+          {showPriceChange && (
+            <div className="mb-4 p-4 rounded-lg space-y-3 animate-fade-in" style={{ background: 'var(--color-surface)' }}>
+              <div className="grid grid-cols-2 gap-3">
+                <input type="text" inputMode="decimal" placeholder={t('new_price')} value={priceForm.new_cost}
+                  onChange={e => setPriceForm(f => ({ ...f, new_cost: e.target.value }))}
+                  className="px-3 py-2 rounded-lg text-sm outline-none font-mono" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                <select value={priceForm.reason} onChange={e => setPriceForm(f => ({ ...f, reason: e.target.value }))}
+                  className="px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
+                  <option value="price_increase">{t('reason_price_increase')}</option>
+                  <option value="promo_start">{t('reason_promo_start')}</option>
+                  <option value="promo_end">{t('reason_promo_end')}</option>
+                  <option value="manual">{t('reason_manual')}</option>
+                </select>
+              </div>
+              <div className="flex justify-end">
+                <button onClick={async () => {
+                  if (!priceForm.new_cost) return;
+                  await api.priceChange(id, priceForm);
+                  setPriceForm({ new_cost: '', reason: 'price_increase' });
+                  setShowPriceChange(false);
+                  loadData();
+                }} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:scale-[1.02] transition-all"
+                  style={{ background: 'var(--color-primary)' }}>{t('common:actions.save')}</button>
+              </div>
+            </div>
+          )}
+
+          {costHistory.length > 0 ? (
+            <div className="space-y-2">
+              {costHistory.map(entry => {
+                const reasonColors = { price_increase: '#ef4444', promo_start: '#10b981', promo_end: '#f59e0b', manual: '#6b7280' };
+                return (
+                  <div key={entry.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+                    <span className="text-xs font-mono" style={{ color: 'var(--color-text-muted)' }}>{entry.changed_at?.split(' ')[0] || '—'}</span>
+                    <span className="font-mono" style={{ color: 'var(--color-text-muted)' }}>
+                      {entry.old_cost != null ? <CostBadge amount={entry.old_cost} /> : '—'}
+                    </span>
+                    <span style={{ color: 'var(--color-text-muted)' }}>→</span>
+                    <CostBadge amount={entry.new_cost} />
+                    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded ml-auto"
+                      style={{ background: `${reasonColors[entry.reason] || '#6b7280'}20`, color: reasonColors[entry.reason] || '#6b7280' }}>
+                      {t(`reason_${entry.reason}`, entry.reason)}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
+          )}
         </div>
       )}
 
@@ -192,19 +356,84 @@ export default function ServerDetailPage() {
 
       {/* Services */}
       <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
-        <h3 className="flex items-center gap-2 text-sm font-semibold mb-4"><Cog size={16} style={{ color: 'var(--color-primary)' }} /> {t('services')}</h3>
-        {services.length === 0 ? (
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold"><Cog size={16} style={{ color: 'var(--color-primary)' }} /> {t('services')}</h3>
+          <button onClick={() => setShowSvcForm(!showSvcForm)} className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
+            {showSvcForm ? <X size={12} /> : <Plus size={12} />} {showSvcForm ? t('common:actions.cancel') : t('add_service')}
+          </button>
+        </div>
+
+        {showSvcForm && (
+          <div className="mb-4 p-4 rounded-lg space-y-3 animate-fade-in" style={{ background: 'var(--color-surface)' }}>
+            <div className="grid grid-cols-2 gap-3">
+              <input placeholder={t('service_name')} value={svcForm.name} onChange={e => setSvcForm(f => ({ ...f, name: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle} />
+              <select value={svcForm.category} onChange={e => setSvcForm(f => ({ ...f, category: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                <option value="">{t('service_category')}</option>
+                <option value="web">{t('category_web')}</option>
+                <option value="database">{t('category_database')}</option>
+                <option value="monitoring">{t('category_monitoring')}</option>
+                <option value="media">{t('category_media')}</option>
+                <option value="other">{t('category_other')}</option>
+              </select>
+            </div>
+            <div className="grid grid-cols-3 gap-3">
+              <input placeholder={t('service_domain')} value={svcForm.domain} onChange={e => setSvcForm(f => ({ ...f, domain: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none font-mono" style={inputStyle} />
+              <input type="number" placeholder={t('service_port')} value={svcForm.port} onChange={e => setSvcForm(f => ({ ...f, port: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none font-mono" style={inputStyle} />
+              <select value={svcForm.protocol} onChange={e => setSvcForm(f => ({ ...f, protocol: e.target.value }))}
+                className="px-3 py-2 rounded-lg text-sm outline-none" style={inputStyle}>
+                <option value="tcp">TCP</option>
+                <option value="udp">UDP</option>
+                <option value="http">HTTP</option>
+                <option value="https">HTTPS</option>
+              </select>
+            </div>
+            <div className="flex items-center gap-4">
+              <label className="flex items-center gap-2 text-sm cursor-pointer">
+                <input type="checkbox" checked={svcForm.docker} onChange={e => setSvcForm(f => ({ ...f, docker: e.target.checked }))} className="w-4 h-4 rounded" />
+                {t('service_docker')}
+              </label>
+            </div>
+            <div className="flex justify-end">
+              <button onClick={async () => {
+                if (!svcForm.name) return;
+                await api.createService({ server_id: Number(id), ...svcForm, port: svcForm.port ? Number(svcForm.port) : null });
+                setSvcForm({ name: '', category: '', port: '', url: '', domain: '', protocol: 'tcp', docker: false, notes: '' });
+                setShowSvcForm(false); loadData();
+              }} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:scale-[1.02] transition-all"
+                style={{ background: 'var(--color-primary)' }}>{t('common:actions.save')}</button>
+            </div>
+          </div>
+        )}
+
+        {services.length === 0 && !showSvcForm ? (
           <p className="text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
         ) : (
           <div className="space-y-2">
-            {services.map(svc => (
-              <div key={svc.id} className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
-                <span className="font-mono font-medium">{svc.name}</span>
-                {svc.port && <span className="font-mono text-xs" style={{ color: 'var(--color-text-muted)' }}>:{svc.port}</span>}
-                {svc.category && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{svc.category}</span>}
-                <StatusBadge status={svc.status} />
-              </div>
-            ))}
+            {services.map(svc => {
+              const catColors = { web: '#10b981', database: '#3b82f6', monitoring: '#f59e0b', media: '#8b5cf6', other: '#6b7280' };
+              return (
+                <div key={svc.id} className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm" style={{ background: 'var(--color-surface)' }}>
+                  <StatusBadge status={svc.status} />
+                  <span className="font-semibold">{svc.name}</span>
+                  {svc.category && (
+                    <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded"
+                      style={{ background: `${catColors[svc.category] || '#6b7280'}20`, color: catColors[svc.category] || '#6b7280' }}>
+                      {t(`category_${svc.category}`, svc.category)}
+                    </span>
+                  )}
+                  {svc.domain && <span className="font-mono text-xs" style={{ color: 'var(--color-text-muted)' }}>{svc.domain}</span>}
+                  {svc.port && <span className="font-mono text-xs" style={{ color: 'var(--color-text-muted)' }}>:{svc.port}</span>}
+                  {svc.protocol && <span className="text-[10px] uppercase" style={{ color: 'var(--color-text-muted)' }}>{svc.protocol}</span>}
+                  {svc.docker ? <span className="text-[10px] px-1 py-0.5 rounded" style={{ background: '#06469520', color: '#0ea5e9' }}>Docker</span> : null}
+                  <button onClick={async () => { await api.deleteService(svc.id); loadData(); }}
+                    className="ml-auto p-1 rounded hover:bg-white/5" style={{ color: 'var(--color-danger)' }}><Trash2 size={12} /></button>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>

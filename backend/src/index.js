@@ -10,6 +10,7 @@ import providerRoutes from './routes/providers.js';
 import serverRoutes from './routes/servers.js';
 import ipRoutes from './routes/ips.js';
 import serviceRoutes from './routes/services.js';
+import tagRoutes from './routes/tags.js';
 import dashboardRoutes from './routes/dashboard.js';
 import exportRoutes from './routes/export.js';
 import cron from 'node-cron';
@@ -34,6 +35,7 @@ async function start() {
   app.use('/api/v1/servers', authMiddleware, serverRoutes(db));
   app.use('/api/v1/ips', authMiddleware, ipRoutes(db));
   app.use('/api/v1/services', authMiddleware, serviceRoutes(db));
+  app.use('/api/v1/tags', authMiddleware, tagRoutes(db));
   app.use('/api/v1/dashboard', authMiddleware, dashboardRoutes(db));
   app.use('/api/v1', authMiddleware, exportRoutes(db));
 

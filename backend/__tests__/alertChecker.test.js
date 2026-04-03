@@ -45,4 +45,19 @@ describe('Alert Checker', () => {
     const alerts = db.prepare('SELECT * FROM alerts').all();
     expect(alerts).toHaveLength(1);
   });
+
+  it('should NOT recreate alert after marking as read', () => {
+    const pid = db.prepare('INSERT INTO providers (name) VALUES (?)').run('Test').lastInsertRowid;
+    const futureDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+    db.prepare('INSERT INTO servers (provider_id, name, monthly_cost, next_cancellation_date, is_cancelled) VALUES (?, ?, ?, ?, ?)').run(pid, 'srv1', 10, futureDate, 1);
+
+    checkAlerts(db);
+    // Mark as read
+    db.prepare("UPDATE alerts SET sent = 1, sent_at = datetime('now')").run();
+    // Run checker again (simulates server restart)
+    checkAlerts(db);
+
+    const alerts = db.prepare('SELECT * FROM alerts').all();
+    expect(alerts).toHaveLength(1);
+  });
 });

@@ -1,18 +1,24 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Globe, Lock, Download, Upload, Check, AlertCircle, DollarSign } from 'lucide-react';
+import { Globe, Lock, Download, Upload, Check, AlertCircle, DollarSign, Tag, Plus, Trash2 } from 'lucide-react';
 import { api } from '../api/client.js';
+import TagPill from '../components/TagPill.jsx';
 
 const CURRENCIES = ['EUR', 'USD', 'GBP', 'CHF', 'PLN', 'CZK', 'SEK', 'NOK', 'DKK'];
 
 export default function SettingsPage() {
   const { t, i18n } = useTranslation();
   const [currency, setCurrency] = useState(() => localStorage.getItem('currency') || 'EUR');
+  const [tags, setTags] = useState([]);
+  const [newTag, setNewTag] = useState({ name: '', color: '#6b7280' });
   const [pwForm, setPwForm] = useState({ currentPassword: '', newPassword: '' });
   const [pwMsg, setPwMsg] = useState('');
   const [pwError, setPwError] = useState('');
   const [importMsg, setImportMsg] = useState('');
   const [importError, setImportError] = useState('');
+
+  const loadTags = () => api.getTags().then(setTags);
+  useEffect(() => { loadTags(); }, []);
   const fileRef = useRef(null);
 
   const changeLanguage = (lng) => {
@@ -110,6 +116,31 @@ export default function SettingsPage() {
           <button type="submit" className="px-4 py-2 rounded-lg text-sm font-semibold text-white hover:scale-[1.02] transition-all"
             style={{ background: 'var(--color-primary)' }}>{t('auth.change_password')}</button>
         </form>
+      </div>
+
+      <div className="rounded-xl p-6" style={cardStyle}>
+        <h3 className="flex items-center gap-2 font-semibold mb-4"><Tag size={18} style={{ color: '#10b981' }} /> {t('servers:manage_tags')}</h3>
+        <div className="flex flex-wrap gap-2 mb-4">
+          {tags.map(tag => (
+            <div key={tag.id} className="flex items-center gap-1">
+              <TagPill tag={tag} />
+              {!tag.is_preset && (
+                <button onClick={async () => { await api.deleteTag(tag.id); loadTags(); }}
+                  className="p-0.5 rounded hover:bg-white/10" style={{ color: 'var(--color-danger)' }}><Trash2 size={10} /></button>
+              )}
+              {tag.is_preset && <span className="text-[9px] uppercase" style={{ color: 'var(--color-text-muted)' }}>{t('servers:preset_tag')}</span>}
+            </div>
+          ))}
+        </div>
+        <div className="flex gap-2 items-end">
+          <input placeholder={t('servers:tag_name')} value={newTag.name} onChange={e => setNewTag(n => ({ ...n, name: e.target.value }))}
+            className="px-3 py-2 rounded-lg text-sm outline-none flex-1" style={inputStyle} />
+          <input type="color" value={newTag.color} onChange={e => setNewTag(n => ({ ...n, color: e.target.value }))}
+            className="w-10 h-10 rounded-lg cursor-pointer border-0" style={{ background: 'transparent' }} />
+          <button onClick={async () => { if (!newTag.name) return; await api.createTag(newTag); setNewTag({ name: '', color: '#6b7280' }); loadTags(); }}
+            className="px-3 py-2 rounded-lg text-sm font-semibold text-white hover:scale-[1.02] transition-all"
+            style={{ background: 'var(--color-primary)' }}><Plus size={16} /></button>
+        </div>
       </div>
 
       <div className="rounded-xl p-6" style={cardStyle}>

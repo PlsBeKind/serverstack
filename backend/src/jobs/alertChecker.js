@@ -15,8 +15,8 @@ export function checkAlerts(db) {
 
   for (const server of expiringServers) {
     const existing = db.prepare(`
-      SELECT id FROM alerts WHERE server_id = ? AND type = 'cancellation' AND sent = 0
-    `).get(server.id);
+      SELECT id FROM alerts WHERE server_id = ? AND type = 'cancellation' AND trigger_date = ?
+    `).get(server.id, server.next_cancellation_date);
 
     if (!existing) {
       const daysLeft = Math.ceil((new Date(server.next_cancellation_date) - new Date()) / (1000 * 60 * 60 * 24));
@@ -42,8 +42,8 @@ export function checkAlerts(db) {
 
   for (const server of expiringPromos) {
     const existing = db.prepare(`
-      SELECT id FROM alerts WHERE server_id = ? AND type = 'promo_end' AND sent = 0
-    `).get(server.id);
+      SELECT id FROM alerts WHERE server_id = ? AND type = 'promo_end' AND trigger_date = ?
+    `).get(server.id, server.promo_end_date);
 
     if (!existing) {
       const increase = server.regular_cost

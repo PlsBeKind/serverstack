@@ -7,14 +7,40 @@ import { encrypt, decrypt } from '../utils/crypto.js';
 export default function serverRoutes(db) {
   const router = Router();
 
+  /** Attach tags array to a server object */
+  function attachTags(server) {
+    const tags = db.prepare(`
+      SELECT t.* FROM tags t
+      JOIN server_tags st ON st.tag_id = t.id
+      WHERE st.server_id = ?
+    `).all(server.id);
+    return { ...server, tags };
+  }
+
   router.get('/', (req, res) => {
-    const servers = db.prepare(`
-      SELECT s.*, p.name as provider_name
-      FROM servers s
-      LEFT JOIN providers p ON s.provider_id = p.id
-      ORDER BY s.name
-    `).all();
-    res.json(servers);
+    const tagFilter = req.query.tag;
+
+    let servers;
+    if (tagFilter) {
+      servers = db.prepare(`
+        SELECT DISTINCT s.*, p.name as provider_name
+        FROM servers s
+        LEFT JOIN providers p ON s.provider_id = p.id
+        JOIN server_tags st ON st.server_id = s.id
+        JOIN tags t ON t.id = st.tag_id
+        WHERE t.name = ?
+        ORDER BY s.name
+      `).all(tagFilter);
+    } else {
+      servers = db.prepare(`
+        SELECT s.*, p.name as provider_name
+        FROM servers s
+        LEFT JOIN providers p ON s.provider_id = p.id
+        ORDER BY s.name
+      `).all();
+    }
+
+    res.json(servers.map(attachTags));
   });
 
   router.get('/expiring', (req, res) => {
@@ -38,7 +64,7 @@ export default function serverRoutes(db) {
       WHERE s.id = ?
     `).get(req.params.id);
     if (!server) return res.status(404).json({ error: 'servers.not_found' });
-    res.json(server);
+    res.json(attachTags(server));
   });
 
   router.get('/:id/services', (req, res) => {
@@ -49,6 +75,112 @@ export default function serverRoutes(db) {
   router.get('/:id/ips', (req, res) => {
     const ips = db.prepare('SELECT * FROM ip_addresses WHERE server_id = ?').all(req.params.id);
     res.json(ips);
+  });
+
+  // --- Cost history routes ---
+
+  router.get('/:id/cost-history', (req, res) => {
+    const history = db.prepare('SELECT * FROM cost_history WHERE server_id = ? ORDER BY id DESC').all(req.params.id);
+    res.json(history);
+  });
+
+  router.post('/:id/price-change', (req, res) => {
+    const { new_cost, reason } = req.body;
+    if (new_cost === undefined || new_cost === null) {
+      return res.status(400).json({ error: 'cost_history.new_cost_required' });
+    }
+
+    const server = db.prepare('SELECT id, monthly_cost FROM servers WHERE id = ?').get(req.params.id);
+    if (!server) return res.status(404).json({ error: 'servers.not_found' });
+
+    const oldCost = server.monthly_cost || 0;
+    const parsedCost = parseFloat(String(new_cost).replace(',', '.')) || 0;
+
+    db.prepare('INSERT INTO cost_history (server_id, old_cost, new_cost, reason) VALUES (?, ?, ?, ?)')
+      .run(req.params.id, oldCost, parsedCost, reason || 'manual');
+
+    db.prepare("UPDATE servers SET monthly_cost = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(parsedCost, req.params.id);
+
+    const updated = db.prepare('SELECT * FROM cost_history WHERE server_id = ? ORDER BY id DESC').all(req.params.id);
+    res.status(201).json(updated);
+  });
+
+  // --- Tag assignment routes ---
+
+  router.post('/:id/tags', (req, res) => {
+    const { tag_id } = req.body;
+    if (!tag_id) return res.status(400).json({ error: 'tags.tag_id_required' });
+
+    const server = db.prepare('SELECT id FROM servers WHERE id = ?').get(req.params.id);
+    if (!server) return res.status(404).json({ error: 'servers.not_found' });
+
+    const tag = db.prepare('SELECT id FROM tags WHERE id = ?').get(tag_id);
+    if (!tag) return res.status(404).json({ error: 'tags.not_found' });
+
+    try {
+      db.prepare('INSERT INTO server_tags (server_id, tag_id) VALUES (?, ?)').run(req.params.id, tag_id);
+    } catch (err) {
+      if (err.code === 'SQLITE_CONSTRAINT_PRIMARYKEY') {
+        return res.status(409).json({ error: 'tags.already_assigned' });
+      }
+      throw err;
+    }
+
+    const tags = db.prepare('SELECT t.* FROM tags t JOIN server_tags st ON st.tag_id = t.id WHERE st.server_id = ?').all(req.params.id);
+    res.status(201).json(tags);
+  });
+
+  router.delete('/:id/tags/:tagId', (req, res) => {
+    const existing = db.prepare('SELECT * FROM server_tags WHERE server_id = ? AND tag_id = ?').get(req.params.id, req.params.tagId);
+    if (!existing) return res.status(404).json({ error: 'tags.not_assigned' });
+
+    db.prepare('DELETE FROM server_tags WHERE server_id = ? AND tag_id = ?').run(req.params.id, req.params.tagId);
+    res.status(204).end();
+  });
+
+  // --- Disk sub-routes ---
+
+  router.get('/:id/disks', (req, res) => {
+    const disks = db.prepare('SELECT * FROM server_disks WHERE server_id = ? ORDER BY id').all(req.params.id);
+    res.json(disks);
+  });
+
+  router.post('/:id/disks', (req, res) => {
+    const { label, size_gb, type, monthly_cost, notes } = req.body;
+    if (!size_gb) return res.status(400).json({ error: 'disks.size_required' });
+
+    const server = db.prepare('SELECT id FROM servers WHERE id = ?').get(req.params.id);
+    if (!server) return res.status(404).json({ error: 'servers.not_found' });
+
+    const result = db.prepare(
+      'INSERT INTO server_disks (server_id, label, size_gb, type, monthly_cost, notes) VALUES (?, ?, ?, ?, ?, ?)'
+    ).run(req.params.id, label || null, size_gb, type || 'ssd', monthly_cost || null, notes || null);
+
+    const disk = db.prepare('SELECT * FROM server_disks WHERE id = ?').get(result.lastInsertRowid);
+    res.status(201).json(disk);
+  });
+
+  router.put('/:id/disks/:diskId', (req, res) => {
+    const existing = db.prepare('SELECT * FROM server_disks WHERE id = ? AND server_id = ?').get(req.params.diskId, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'disks.not_found' });
+
+    const { label, size_gb, type, monthly_cost, notes } = req.body;
+    db.prepare('UPDATE server_disks SET label = ?, size_gb = ?, type = ?, monthly_cost = ?, notes = ? WHERE id = ?')
+      .run(label ?? existing.label, size_gb ?? existing.size_gb, type ?? existing.type,
+           monthly_cost !== undefined ? (monthly_cost || null) : existing.monthly_cost,
+           notes ?? existing.notes, req.params.diskId);
+
+    const disk = db.prepare('SELECT * FROM server_disks WHERE id = ?').get(req.params.diskId);
+    res.json(disk);
+  });
+
+  router.delete('/:id/disks/:diskId', (req, res) => {
+    const existing = db.prepare('SELECT id FROM server_disks WHERE id = ? AND server_id = ?').get(req.params.diskId, req.params.id);
+    if (!existing) return res.status(404).json({ error: 'disks.not_found' });
+
+    db.prepare('DELETE FROM server_disks WHERE id = ?').run(req.params.diskId);
+    res.status(204).end();
   });
 
   // --- Credentials sub-routes ---
@@ -110,7 +242,7 @@ export default function serverRoutes(db) {
   router.post('/', (req, res) => {
     const {
       provider_id, name, type, hostname, location, os,
-      cpu_cores, ram_mb, storage_gb, storage_type, status, notes,
+      cpu_cores, ram_mb, status, notes,
       ssh_user, ssh_port, ssh_public_key, ssh_host_key,
       contract_number, monthly_cost, regular_cost, billing_cycle,
       contract_start_date, contract_end_date, cancellation_period_days,
@@ -128,16 +260,16 @@ export default function serverRoutes(db) {
     const result = db.prepare(`
       INSERT INTO servers (
         provider_id, name, type, hostname, location, os,
-        cpu_cores, ram_mb, storage_gb, storage_type, status, notes,
+        cpu_cores, ram_mb, status, notes,
         ssh_user, ssh_port, ssh_public_key, ssh_host_key,
         contract_number, monthly_cost, regular_cost, billing_cycle,
         contract_start_date, contract_end_date, cancellation_period_days,
         next_cancellation_date, auto_renew, promo_price, promo_end_date,
         contract_period, is_cancelled, contract_notes
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `).run(
       provider_id, name, type || null, hostname || null, location || null, os || null,
-      cpu_cores || null, ram_mb || null, storage_gb || null, storage_type || null,
+      cpu_cores || null, ram_mb || null,
       status || 'active', notes || null,
       ssh_user || null, ssh_port || 22, ssh_public_key || null, ssh_host_key || null,
       contract_number || null, monthly_cost || 0, regular_cost || null,
@@ -158,7 +290,7 @@ export default function serverRoutes(db) {
 
     const {
       provider_id, name, type, hostname, location, os,
-      cpu_cores, ram_mb, storage_gb, storage_type, status, notes,
+      cpu_cores, ram_mb, status, notes,
       ssh_user, ssh_port, ssh_public_key, ssh_host_key,
       contract_number, monthly_cost, regular_cost, billing_cycle,
       contract_start_date, contract_end_date, cancellation_period_days,
@@ -169,7 +301,7 @@ export default function serverRoutes(db) {
     db.prepare(`
       UPDATE servers SET
         provider_id = ?, name = ?, type = ?, hostname = ?, location = ?, os = ?,
-        cpu_cores = ?, ram_mb = ?, storage_gb = ?, storage_type = ?,
+        cpu_cores = ?, ram_mb = ?,
         status = ?, notes = ?,
         ssh_user = ?, ssh_port = ?, ssh_public_key = ?, ssh_host_key = ?,
         contract_number = ?, monthly_cost = ?, regular_cost = ?, billing_cycle = ?,
@@ -183,7 +315,6 @@ export default function serverRoutes(db) {
       type ?? existing.type, hostname ?? existing.hostname,
       location ?? existing.location, os ?? existing.os,
       cpu_cores ?? existing.cpu_cores, ram_mb ?? existing.ram_mb,
-      storage_gb ?? existing.storage_gb, storage_type ?? existing.storage_type,
       status ?? existing.status, notes ?? existing.notes,
       ssh_user ?? existing.ssh_user, ssh_port ?? existing.ssh_port,
       ssh_public_key ?? existing.ssh_public_key, ssh_host_key ?? existing.ssh_host_key,

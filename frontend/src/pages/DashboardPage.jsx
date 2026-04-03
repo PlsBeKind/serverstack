@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Server, Building2, DollarSign, HardDrive, Cpu, Network, Bell, TrendingUp } from 'lucide-react';
+import { Server, Building2, DollarSign, HardDrive, Cpu, Network, Bell, TrendingUp, CalendarClock, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { api } from '../api/client.js';
 import CostBadge from '../components/CostBadge.jsx';
@@ -28,10 +29,11 @@ export default function DashboardPage() {
   const [costs, setCosts] = useState(null);
   const [alerts, setAlerts] = useState([]);
   const [resources, setResources] = useState(null);
+  const [billing, setBilling] = useState([]);
 
   useEffect(() => {
-    Promise.all([api.getSummary(), api.getCosts(), api.getAlerts(), api.getResources()])
-      .then(([s, c, a, r]) => { setSummary(s); setCosts(c); setAlerts(a); setResources(r); });
+    Promise.all([api.getSummary(), api.getCosts(), api.getAlerts(), api.getResources(), api.getUpcomingBilling()])
+      .then(([s, c, a, r, b]) => { setSummary(s); setCosts(c); setAlerts(a); setResources(r); setBilling(b); });
   }, []);
 
   if (!summary) return <div className="flex items-center justify-center h-64 opacity-50">{t('common:actions.loading')}</div>;
@@ -48,7 +50,8 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard icon={Server} label={t('total_servers')} value={summary.servers.total} sub={`${summary.servers.active} ${t('active_servers').toLowerCase()}`} />
         <StatCard icon={Building2} label={t('providers')} value={summary.providers} color="#06b6d4" />
-        <StatCard icon={DollarSign} label={t('total_monthly')} value={<CostBadge amount={costs?.total_monthly} />} color="#f59e0b" />
+        <StatCard icon={DollarSign} label={t('total_monthly')} value={<CostBadge amount={costs?.total_monthly} />}
+          sub={summary.next_billing ? `${t('next_charge')}: ${summary.next_billing.billing_date}` : null} color="#f59e0b" />
         <StatCard icon={TrendingUp} label={t('promo_savings')} value={<CostBadge amount={costs?.promo_savings} />} color="#8b5cf6" />
       </div>
 
@@ -105,6 +108,14 @@ export default function DashboardPage() {
               <div className="flex-1">
                 <p className="text-sm">{t('total_ips')}</p>
                 <p className="text-lg font-bold font-mono">{resources?.total_ips || 0}</p>
+                {resources && (resources.ipv4_addresses > 0 || resources.ipv6_addresses > 0) && (
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                    {resources.ipv4_addresses > 0 && <span>{resources.ipv4_addresses} {t('ipv4_addresses')}</span>}
+                    {resources.ipv4_subnets > 0 && <span>{resources.ipv4_subnets} {t('ipv4_subnets')}</span>}
+                    {resources.ipv6_addresses > 0 && <span>{resources.ipv6_addresses} {t('ipv6_addresses')}</span>}
+                    {resources.ipv6_subnets > 0 && <span>{resources.ipv6_subnets} {t('ipv6_subnets')}</span>}
+                  </div>
+                )}
               </div>
             </div>
           </div>
@@ -131,6 +142,57 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+      </div>
+
+      {/* Upcoming Events */}
+      <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+        <h3 className="flex items-center gap-2 text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>
+          <CalendarClock size={16} style={{ color: '#f59e0b' }} /> {t('upcoming_events')}
+        </h3>
+        {billing.length === 0 ? (
+          <p className="text-center py-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('no_upcoming')}</p>
+        ) : (
+          <div className="space-y-2">
+            {billing.map((b, i) => {
+              const isCancelled = b.status === 'cancelled';
+              const isExpired = b.status === 'expired';
+              const isDueSoon = b.status === 'due_soon';
+              const isUnknown = b.status === 'unknown_date';
+              const color = isCancelled ? '#ef4444' : isExpired ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
+
+              let timeLabel;
+              if (isCancelled) {
+                if (b.days_until !== null && b.days_until >= 0) timeLabel = t('ends_in_days', { count: b.days_until });
+                else if (b.date) timeLabel = t('ends_on', { date: b.date });
+                else timeLabel = '';
+              }
+              else if (isExpired) timeLabel = t('expired');
+              else if (isUnknown) timeLabel = t('date_unknown');
+              else if (b.days_until === 0) timeLabel = t('today');
+              else if (b.days_until === 1) timeLabel = t('in_1_day');
+              else if (b.days_until !== null) timeLabel = t('in_days', { count: b.days_until });
+              else timeLabel = b.label;
+
+              return (
+                <Link key={i} to={`/servers/${b.server_id}/edit`}
+                  className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm hover:bg-white/5 transition-colors"
+                  style={{ background: 'var(--color-surface)' }}>
+                  <div className="flex items-center gap-2">
+                    {isUnknown && <AlertTriangle size={12} style={{ color: '#6b7280' }} />}
+                    <span className="font-semibold">{b.server_name}</span>
+                    {b.provider_name && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{b.provider_name}</span>}
+                  </div>
+                  <div className="flex items-center gap-3">
+                    {isCancelled
+                      ? <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>Cancelled</span>
+                      : <CostBadge amount={b.amount} />}
+                    <span className="text-xs font-mono" style={{ color }}>{timeLabel}</span>
+                  </div>
+                </Link>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );
