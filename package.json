@@ -1,6 +1,6 @@
 {
   "name": "serverstack",
-  "version": "1.4.0",
+  "version": "0.4.0-alpha",
   "private": true,
   "type": "module",
   "description": "Multi-provider server inventory & cost tracker",
