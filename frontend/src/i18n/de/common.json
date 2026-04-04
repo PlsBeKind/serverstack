@@ -45,7 +45,8 @@
     "no_data": "Keine Daten gefunden",
     "export": "Exportieren",
     "import": "Importieren",
-    "all": "Alle"
+    "all": "Alle",
+    "copied": "Kopiert"
   },
   "status": {
     "active": "Aktiv",

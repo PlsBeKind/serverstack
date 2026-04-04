@@ -74,7 +74,7 @@ export default function ContractsPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   <CostBadge amount={s.monthly_cost} promo={!!s.promo_price} />
-                  {s.billing_cycle && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>/{s.billing_cycle}</span>}
+                  {s.billing_cycle && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>/{t(`cycle_${s.billing_cycle}`, s.billing_cycle)}</span>}
                 </div>
               </div>
               <div className="flex items-center justify-between mt-3 pt-3 text-xs" style={{ borderTop: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>

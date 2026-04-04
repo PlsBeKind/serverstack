@@ -144,7 +144,7 @@ export default function ServerDetailPage() {
             {server.billing_cycle && (
               <div>
                 <p className="text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:billing_cycle')}</p>
-                <p className="text-sm capitalize">{server.billing_cycle}</p>
+                <p className="text-sm">{t(`contracts:cycle_${server.billing_cycle}`, server.billing_cycle)}</p>
               </div>
             )}
           </div>

@@ -14,6 +14,8 @@
   "location": "Location",
   "os": "Operating System",
   "cpu_cores": "CPU Cores",
+  "cpu_core_one": "Core",
+  "cpu_core_other": "Cores",
   "ram_mb": "RAM (MB)",
   "ram_gb": "RAM (GB)",
   "storage_gb": "Storage (GB)",
