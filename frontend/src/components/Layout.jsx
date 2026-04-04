@@ -86,8 +86,8 @@ export default function Layout({ auth, children }) {
           <span className="font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{t('app_name')}</span>
         </header>
 
-        <main className="flex-1 overflow-y-auto p-4 lg:p-8">
-          <div className="max-w-7xl mx-auto animate-fade-in">{children}</div>
+        <main className="flex-1 overflow-y-auto p-4 lg:px-8 lg:py-6">
+          <div className="mx-auto animate-fade-in" style={{ maxWidth: '1920px' }}>{children}</div>
         </main>
       </div>
     </div>

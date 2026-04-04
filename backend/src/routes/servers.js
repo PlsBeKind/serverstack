@@ -23,7 +23,9 @@ export default function serverRoutes(db) {
     let servers;
     if (tagFilter) {
       servers = db.prepare(`
-        SELECT DISTINCT s.*, p.name as provider_name
+        SELECT DISTINCT s.*, p.name as provider_name,
+          (SELECT ip.address FROM ip_addresses ip WHERE ip.server_id = s.id AND ip.version = 'ipv4' AND ip.type = 'primary' LIMIT 1) as primary_ipv4,
+          COALESCE((SELECT SUM(sd.size_gb) FROM server_disks sd WHERE sd.server_id = s.id), s.storage_gb, 0) as total_disk_gb
         FROM servers s
         LEFT JOIN providers p ON s.provider_id = p.id
         JOIN server_tags st ON st.server_id = s.id
@@ -33,7 +35,9 @@ export default function serverRoutes(db) {
       `).all(tagFilter);
     } else {
       servers = db.prepare(`
-        SELECT s.*, p.name as provider_name
+        SELECT s.*, p.name as provider_name,
+          (SELECT ip.address FROM ip_addresses ip WHERE ip.server_id = s.id AND ip.version = 'ipv4' AND ip.type = 'primary' LIMIT 1) as primary_ipv4,
+          COALESCE((SELECT SUM(sd.size_gb) FROM server_disks sd WHERE sd.server_id = s.id), s.storage_gb, 0) as total_disk_gb
         FROM servers s
         LEFT JOIN providers p ON s.provider_id = p.id
         ORDER BY s.name
@@ -75,6 +79,35 @@ export default function serverRoutes(db) {
   router.get('/:id/ips', (req, res) => {
     const ips = db.prepare('SELECT * FROM ip_addresses WHERE server_id = ?').all(req.params.id);
     res.json(ips);
+  });
+
+  // --- Scheduled price change routes ---
+
+  router.post('/:id/schedule-price-change', (req, res) => {
+    const { new_cost, effective_date, reason } = req.body;
+    if (!new_cost || !effective_date) {
+      return res.status(400).json({ error: 'price_change.missing_fields' });
+    }
+
+    const server = db.prepare('SELECT id FROM servers WHERE id = ?').get(req.params.id);
+    if (!server) return res.status(404).json({ error: 'servers.not_found' });
+
+    const parsedCost = parseFloat(String(new_cost).replace(',', '.'));
+    db.prepare("UPDATE servers SET pending_cost = ?, pending_cost_date = ?, pending_cost_reason = ?, updated_at = datetime('now') WHERE id = ?")
+      .run(parsedCost, effective_date, reason || 'price_increase', req.params.id);
+
+    const updated = db.prepare('SELECT * FROM servers WHERE id = ?').get(req.params.id);
+    res.status(201).json(updated);
+  });
+
+  router.delete('/:id/schedule-price-change', (req, res) => {
+    const server = db.prepare('SELECT id FROM servers WHERE id = ?').get(req.params.id);
+    if (!server) return res.status(404).json({ error: 'servers.not_found' });
+
+    db.prepare("UPDATE servers SET pending_cost = NULL, pending_cost_date = NULL, pending_cost_reason = NULL, updated_at = datetime('now') WHERE id = ?")
+      .run(req.params.id);
+
+    res.status(204).end();
   });
 
   // --- Cost history routes ---

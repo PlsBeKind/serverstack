@@ -346,13 +346,13 @@ export default function ServerFormPage() {
                   <select name="billing_cycle" value={form.billing_cycle || ''} onChange={handleChange}
                     className="w-full px-3 py-2 rounded-lg text-sm outline-none focus:ring-2" style={inputStyle}>
                     <option value="">—</option>
-                    <option value="hourly">Hourly</option>
-                    <option value="monthly">Monthly</option>
-                    <option value="quarterly">Quarterly</option>
-                    <option value="semi-annual">Semi-Annual</option>
-                    <option value="yearly">Yearly</option>
-                    <option value="biennial">Biennial</option>
-                    <option value="prepaid">Prepaid</option>
+                    <option value="hourly">{t('contracts:cycle_hourly')}</option>
+                    <option value="monthly">{t('contracts:cycle_monthly')}</option>
+                    <option value="quarterly">{t('contracts:cycle_quarterly')}</option>
+                    <option value="semi-annual">{t('contracts:cycle_semi-annual')}</option>
+                    <option value="yearly">{t('contracts:cycle_yearly')}</option>
+                    <option value="biennial">{t('contracts:cycle_biennial')}</option>
+                    <option value="prepaid">{t('contracts:cycle_prepaid')}</option>
                   </select>
                 </div>
               </div>

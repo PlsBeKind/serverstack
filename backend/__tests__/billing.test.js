@@ -87,6 +87,25 @@ describe('getNextBillingDate', () => {
     expect(result.amount).toBe(0);
   });
 
+  it('should use pending_cost for billing after pending_cost_date', () => {
+    // VPS piko: €1/month yearly, pending change to €1.19 on May 1, next billing in December
+    const result = getNextBillingDate({
+      monthly_cost: 1, billing_cycle: 'yearly', contract_start_date: '2025-12-01',
+      pending_cost: 1.19, pending_cost_date: '2026-05-01',
+    });
+    // Next billing is Dec 2026, after May 1 → should use €1.19 × 12 = €14.28
+    expect(result.amount).toBeCloseTo(14.28);
+  });
+
+  it('should use current cost if pending_cost_date is after billing date', () => {
+    // Billing in 10 days, price change in 60 days → current price applies
+    const result = getNextBillingDate({
+      monthly_cost: 10, billing_cycle: 'monthly', contract_start_date: '2025-01-10',
+      pending_cost: 15, pending_cost_date: '2099-01-01',
+    });
+    expect(result.amount).toBe(10);
+  });
+
   it('cancelled with past end_date → no billing', () => {
     const result = getNextBillingDate({ monthly_cost: 10, billing_cycle: 'monthly', contract_end_date: '2024-01-01', is_cancelled: 1 });
     expect(result.status).toBe('cancelled');
