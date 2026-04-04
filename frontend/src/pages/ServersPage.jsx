@@ -79,7 +79,7 @@ export default function ServersPage() {
           <p style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4 gap-4">
           {filtered.map(server => (
             <Link key={server.id} to={`/servers/${server.id}`}
               className="rounded-xl p-5 group hover-lift block"

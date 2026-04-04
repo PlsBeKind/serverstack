@@ -48,16 +48,17 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{t('title')}</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard icon={Server} label={t('total_servers')} value={summary.servers.total} sub={`${summary.servers.active} ${t('active_servers').toLowerCase()}`} />
         <StatCard icon={Building2} label={t('providers')} value={summary.providers} color="#06b6d4" />
         <StatCard icon={DollarSign} label={t('total_monthly')} value={<CostBadge amount={costs?.total_monthly} />}
           sub={summary.next_billing ? `${t('next_charge')}: ${summary.next_billing.billing_date}` : null} color="#f59e0b" />
+        <StatCard icon={DollarSign} label={t('total_yearly')} value={<CostBadge amount={costs?.total_yearly} />} color="#f59e0b" />
         <StatCard icon={TrendingUp} label={t('promo_savings')} value={<CostBadge amount={costs?.promo_savings} />} color="#8b5cf6" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-4 gap-6">
+        <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
           <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>{t('cost_by_provider')}</h3>
           {costs?.by_provider?.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
@@ -71,11 +72,13 @@ export default function DashboardPage() {
           ) : (
             <p className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
           )}
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="space-y-1 mt-2">
             {costs?.by_provider?.map((p, i) => (
-              <span key={p.name} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                <span className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />{p.name}
-              </span>
+              <div key={p.name} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
+                <span className="truncate">{p.name}</span>
+                <span className="font-mono ml-auto">€{p.total.toFixed(2)}</span>
+              </div>
             ))}
           </div>
         </div>
@@ -146,6 +149,34 @@ export default function DashboardPage() {
                   </span>
                 </div>
               ))}
+            </div>
+          )}
+        </div>
+
+        {/* Billing Preview */}
+        <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>{t('upcoming_billing')}</h3>
+          {billing.filter(b => b.amount > 0 && b.days_until !== null && b.days_until >= 0).length === 0 ? (
+            <p className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('no_upcoming')}</p>
+          ) : (
+            <div className="space-y-2">
+              {billing.filter(b => b.amount > 0 && b.days_until !== null && b.days_until >= 0 && b.status !== 'price_change').slice(0, 4).map((b, i) => (
+                <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded" style={{ background: 'var(--color-surface)' }}>
+                  <span className="truncate">{b.server_name}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <CostBadge amount={b.amount} />
+                    <span className="font-mono" style={{ color: b.days_until <= 7 ? '#f59e0b' : 'var(--color-text-muted)' }}>
+                      {b.days_until === 0 ? t('today') : b.days_until === 1 ? t('in_1_day') : t('in_days', { count: b.days_until })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {summary.upcoming_billing_total > 0 && (
+                <div className="flex items-center justify-between pt-2 mt-2 text-xs" style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <span style={{ color: 'var(--color-text-muted)' }}>30d</span>
+                  <CostBadge amount={summary.upcoming_billing_total} />
+                </div>
+              )}
             </div>
           )}
         </div>

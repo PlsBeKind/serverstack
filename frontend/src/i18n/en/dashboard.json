@@ -4,6 +4,7 @@
   "active_servers": "Active Servers",
   "providers": "Providers",
   "total_monthly": "Monthly Cost",
+  "cost_breakdown": "Cost Breakdown",
   "total_yearly": "Yearly Cost",
   "promo_savings": "Promo Savings",
   "cost_by_provider": "Cost by Provider",
