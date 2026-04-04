@@ -103,7 +103,15 @@ export default function ServersPage() {
                   <span className="font-mono text-xs flex-1 truncate" style={{ color: 'var(--color-text)' }}>{server.primary_ipv4}</span>
                   <button onClick={(e) => {
                     e.preventDefault(); e.stopPropagation();
-                    navigator.clipboard.writeText(server.primary_ipv4);
+                    const text = server.primary_ipv4;
+                    if (navigator.clipboard && window.isSecureContext) {
+                      navigator.clipboard.writeText(text);
+                    } else {
+                      const ta = document.createElement('textarea');
+                      ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+                      document.body.appendChild(ta); ta.select(); document.execCommand('copy');
+                      document.body.removeChild(ta);
+                    }
                     setCopiedId(server.id);
                     setTimeout(() => setCopiedId(null), 1500);
                   }} className="flex items-center gap-1 px-1.5 py-0.5 rounded hover:bg-white/10 transition-all shrink-0"
