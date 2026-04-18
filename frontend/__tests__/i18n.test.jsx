@@ -7,6 +7,8 @@ import enServers from '../src/i18n/en/servers.json';
 import deServers from '../src/i18n/de/servers.json';
 import enContracts from '../src/i18n/en/contracts.json';
 import deContracts from '../src/i18n/de/contracts.json';
+import enMonitoring from '../src/i18n/en/monitoring.json';
+import deMonitoring from '../src/i18n/de/monitoring.json';
 
 function getKeys(obj, prefix = '') {
   return Object.entries(obj).flatMap(([key, val]) => {
@@ -30,6 +32,10 @@ describe('i18n translations', () => {
 
   it('should have matching keys for contracts namespace', () => {
     expect(getKeys(enContracts).sort()).toEqual(getKeys(deContracts).sort());
+  });
+
+  it('should have matching keys for monitoring namespace', () => {
+    expect(getKeys(enMonitoring).sort()).toEqual(getKeys(deMonitoring).sort());
   });
 
   it('should have non-empty values in English common', () => {

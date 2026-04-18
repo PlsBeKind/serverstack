@@ -11,6 +11,7 @@ import ContractsPage from './pages/ContractsPage.jsx';
 import CostAnalysisPage from './pages/CostAnalysisPage.jsx';
 import ServicesPage from './pages/ServicesPage.jsx';
 import SettingsPage from './pages/SettingsPage.jsx';
+import MonitoringPage from './pages/MonitoringPage.jsx';
 
 export default function App() {
   const auth = useAuth();
@@ -31,6 +32,7 @@ export default function App() {
         <Route path="/servers" element={<ServersPage />} />
         <Route path="/servers/new" element={<ServerFormPage />} />
         <Route path="/servers/:id" element={<ServerDetailPage />} />
+        <Route path="/servers/:id/monitoring" element={<MonitoringPage />} />
         <Route path="/servers/:id/edit" element={<ServerFormPage />} />
         <Route path="/providers" element={<ProvidersPage />} />
         <Route path="/contracts" element={<ContractsPage />} />

@@ -1,8 +1,13 @@
-import 'dotenv/config';
-import express from 'express';
-import cors from 'cors';
+import dotenv from 'dotenv';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+import express from 'express';
+import cors from 'cors';
 import { initDatabase } from './database.js';
 import { authMiddleware } from './middleware/auth.js';
 import authRoutes from './routes/auth.js';
@@ -13,10 +18,11 @@ import serviceRoutes from './routes/services.js';
 import tagRoutes from './routes/tags.js';
 import dashboardRoutes from './routes/dashboard.js';
 import exportRoutes from './routes/export.js';
+import glancesRoutes from './routes/glances.js';
 import cron from 'node-cron';
 import { checkAlerts } from './jobs/alertChecker.js';
+import { pollGlances } from './jobs/glancesPoller.js';
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const PORT = process.env.PORT || 3000;
 
 async function start() {
@@ -38,6 +44,7 @@ async function start() {
   app.use('/api/v1/tags', authMiddleware, tagRoutes(db));
   app.use('/api/v1/dashboard', authMiddleware, dashboardRoutes(db));
   app.use('/api/v1', authMiddleware, exportRoutes(db));
+  app.use('/api/v1', authMiddleware, glancesRoutes(db));
 
   // Serve frontend in production
   const frontendDist = path.resolve(__dirname, '../../frontend/dist');
@@ -57,6 +64,11 @@ async function start() {
   // Alert checker cron — runs daily at 8am
   cron.schedule('0 8 * * *', () => {
     try { checkAlerts(db); } catch (err) { console.error('Alert checker failed:', err); }
+  });
+
+  // Glances poller cron — runs every 30 seconds
+  cron.schedule('*/30 * * * * *', async () => {
+    try { await pollGlances(db); } catch (err) { console.error('Glances poller failed:', err); }
   });
 
   // Run alert check on startup
