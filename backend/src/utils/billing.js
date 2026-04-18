@@ -131,14 +131,21 @@ export function getNextBillingDate(server) {
   }
 
   // --- RECURRING BILLING ---
-  const amount = getBillingAmount(cost, server.billing_cycle);
+  // Determine effective cost: if pending price change takes effect before billing date, use new price
+  function getEffectiveAmount(billingDateStr) {
+    let effectiveCost = cost;
+    if (server.pending_cost && server.pending_cost_date && billingDateStr >= server.pending_cost_date) {
+      effectiveCost = server.pending_cost;
+    }
+    return getBillingAmount(effectiveCost, server.billing_cycle);
+  }
 
   // Priority 1: Use start_date to calculate next billing anniversary
   if (server.contract_start_date && cycleMonths) {
     const next = nextRecurringDate(server.contract_start_date, cycleMonths);
     const nextStr = formatDate(next);
     const days = daysBetween(now, next);
-    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount });
+    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount: getEffectiveAmount(nextStr) });
   }
 
   // Priority 2: No start_date but end_date exists → derive billing day from end_date
@@ -160,11 +167,12 @@ export function getNextBillingDate(server) {
     }
     const nextStr = formatDate(next);
     const days = daysBetween(now, next);
-    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount });
+    return markCancelled(server, { date: nextStr, days_until: days, status: days <= 7 ? 'due_soon' : 'upcoming', label: `Due on ${nextStr}`, amount: getEffectiveAmount(nextStr) });
   }
 
   // --- NO DATE INFO ---
-  return markCancelled(server, { date: null, days_until: null, status: 'unknown_date', label: 'Billing date unknown', amount });
+  const unknownAmount = getBillingAmount(server.pending_cost || cost, server.billing_cycle);
+  return markCancelled(server, { date: null, days_until: null, status: 'unknown_date', label: 'Billing date unknown', amount: unknownAmount });
 }
 
 function markCancelled(server, result) {
@@ -225,7 +233,8 @@ export function getUpcomingBilling(db) {
   const servers = db.prepare(`
     SELECT s.id, s.name, s.monthly_cost, s.contract_start_date, s.billing_cycle,
            s.contract_end_date, s.contract_period, s.auto_renew, s.is_cancelled,
-           s.next_cancellation_date, p.name as provider_name
+           s.next_cancellation_date, s.pending_cost, s.pending_cost_date,
+           p.name as provider_name
     FROM servers s
     LEFT JOIN providers p ON s.provider_id = p.id
     WHERE s.monthly_cost > 0
@@ -249,6 +258,25 @@ export function getUpcomingBilling(db) {
       label: billing.label,
       is_cancelled: billing.is_cancelled || billing.status === 'cancelled',
     });
+
+    // Add pending price change as a separate event
+    if (server.pending_cost && server.pending_cost_date) {
+      const pendingDays = daysBetween(today(), parseDate(server.pending_cost_date));
+      if (pendingDays >= 0) {
+        results.push({
+          server_id: server.id,
+          server_name: server.name,
+          provider_name: server.provider_name,
+          amount: server.pending_cost,
+          billing_date: server.pending_cost_date,
+          billing_cycle: server.billing_cycle,
+          days_until: pendingDays,
+          status: 'price_change',
+          label: `Price change: ${server.monthly_cost} → ${server.pending_cost}`,
+          old_cost: server.monthly_cost,
+        });
+      }
+    }
   }
 
   results.sort((a, b) => {

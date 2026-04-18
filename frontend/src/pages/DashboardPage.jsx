@@ -30,6 +30,7 @@ export default function DashboardPage() {
   const [alerts, setAlerts] = useState([]);
   const [resources, setResources] = useState(null);
   const [billing, setBilling] = useState([]);
+  const [eventsLimit, setEventsLimit] = useState(5);
 
   useEffect(() => {
     Promise.all([api.getSummary(), api.getCosts(), api.getAlerts(), api.getResources(), api.getUpcomingBilling()])
@@ -47,16 +48,17 @@ export default function DashboardPage() {
     <div className="space-y-6">
       <h1 className="text-2xl font-bold" style={{ fontFamily: 'var(--font-heading)' }}>{t('title')}</h1>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <StatCard icon={Server} label={t('total_servers')} value={summary.servers.total} sub={`${summary.servers.active} ${t('active_servers').toLowerCase()}`} />
         <StatCard icon={Building2} label={t('providers')} value={summary.providers} color="#06b6d4" />
         <StatCard icon={DollarSign} label={t('total_monthly')} value={<CostBadge amount={costs?.total_monthly} />}
           sub={summary.next_billing ? `${t('next_charge')}: ${summary.next_billing.billing_date}` : null} color="#f59e0b" />
+        <StatCard icon={DollarSign} label={t('total_yearly')} value={<CostBadge amount={costs?.total_yearly} />} color="#f59e0b" />
         <StatCard icon={TrendingUp} label={t('promo_savings')} value={<CostBadge amount={costs?.promo_savings} />} color="#8b5cf6" />
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+      <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-4 gap-6">
+        <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
           <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>{t('cost_by_provider')}</h3>
           {costs?.by_provider?.length > 0 ? (
             <ResponsiveContainer width="100%" height={200}>
@@ -70,11 +72,13 @@ export default function DashboardPage() {
           ) : (
             <p className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
           )}
-          <div className="flex flex-wrap gap-2 mt-2">
+          <div className="space-y-1 mt-2">
             {costs?.by_provider?.map((p, i) => (
-              <span key={p.name} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
-                <span className="w-2 h-2 rounded-full" style={{ background: COLORS[i % COLORS.length] }} />{p.name}
-              </span>
+              <div key={p.name} className="flex items-center gap-1.5 text-xs" style={{ color: 'var(--color-text-muted)' }}>
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: COLORS[i % COLORS.length] }} />
+                <span className="truncate">{p.name}</span>
+                <span className="font-mono ml-auto">€{p.total.toFixed(2)}</span>
+              </div>
             ))}
           </div>
         </div>
@@ -148,28 +152,72 @@ export default function DashboardPage() {
             </div>
           )}
         </div>
+
+        {/* Billing Preview */}
+        <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <h3 className="text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>{t('upcoming_billing')}</h3>
+          {billing.filter(b => b.amount > 0 && b.days_until !== null && b.days_until >= 0).length === 0 ? (
+            <p className="text-center py-8 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('no_upcoming')}</p>
+          ) : (
+            <div className="space-y-2">
+              {billing.filter(b => b.amount > 0 && b.days_until !== null && b.days_until >= 0 && b.status !== 'price_change').slice(0, 4).map((b, i) => (
+                <div key={i} className="flex items-center justify-between text-xs px-2 py-1.5 rounded" style={{ background: 'var(--color-surface)' }}>
+                  <span className="truncate">{b.server_name}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <CostBadge amount={b.amount} />
+                    <span className="font-mono" style={{ color: b.days_until <= 7 ? '#f59e0b' : 'var(--color-text-muted)' }}>
+                      {b.days_until === 0 ? t('today') : b.days_until === 1 ? t('in_1_day') : t('in_days', { count: b.days_until })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              {summary.upcoming_billing_total > 0 && (
+                <div className="flex items-center justify-between pt-2 mt-2 text-xs" style={{ borderTop: '1px solid var(--color-border)' }}>
+                  <span style={{ color: 'var(--color-text-muted)' }}>30d</span>
+                  <CostBadge amount={summary.upcoming_billing_total} />
+                </div>
+              )}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Upcoming Events */}
       <div className="rounded-xl p-5" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
-        <h3 className="flex items-center gap-2 text-sm font-semibold mb-4" style={{ color: 'var(--color-text-muted)' }}>
-          <CalendarClock size={16} style={{ color: '#f59e0b' }} /> {t('upcoming_events')}
-        </h3>
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="flex items-center gap-2 text-sm font-semibold" style={{ color: 'var(--color-text-muted)' }}>
+            <CalendarClock size={16} style={{ color: '#f59e0b' }} /> {t('upcoming_events')}
+            {billing.length > 0 && <span className="text-xs font-normal ml-1">({eventsLimit === 0 ? billing.length : Math.min(eventsLimit, billing.length)}/{billing.length})</span>}
+          </h3>
+          {billing.length > 5 && (
+            <select value={eventsLimit} onChange={e => setEventsLimit(Number(e.target.value))}
+              className="text-xs px-2 py-1 rounded outline-none" style={{ background: 'var(--color-surface)', border: '1px solid var(--color-border)', color: 'var(--color-text-muted)' }}>
+              <option value={5}>5</option>
+              <option value={10}>10</option>
+              <option value={25}>25</option>
+              <option value={0}>{t('common:actions.all', 'All')}</option>
+            </select>
+          )}
+        </div>
         {billing.length === 0 ? (
           <p className="text-center py-4 text-sm" style={{ color: 'var(--color-text-muted)' }}>{t('no_upcoming')}</p>
         ) : (
           <div className="space-y-2">
-            {billing.map((b, i) => {
-              const isDone = b.status === 'cancelled'; // contract ended, no more billing
-              const isStillBilled = b.is_cancelled && !isDone; // cancelled but still charged until end_date
+            {(eventsLimit === 0 ? billing : billing.slice(0, eventsLimit)).map((b, i) => {
+              const isDone = b.status === 'cancelled';
+              const isStillBilled = b.is_cancelled && !isDone;
+              const isPriceChange = b.status === 'price_change';
               const isExpired = b.status === 'expired';
               const isDueSoon = b.status === 'due_soon';
               const isUnknown = b.status === 'unknown_date';
-              const color = isDone ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
+              const color = isPriceChange ? '#f59e0b' : isDone ? '#6b7280' : isDueSoon ? '#f59e0b' : isUnknown ? '#6b7280' : 'var(--color-text-muted)';
 
               let timeLabel;
-              if (isDone) {
-                if (b.date) timeLabel = t('ends_on', { date: b.date });
+              if (isPriceChange) {
+                timeLabel = t('price_change_on', { date: b.billing_date });
+              } else if (isDone) {
+                if (b.days_until !== null && b.days_until >= 0) timeLabel = t('ends_in_days', { count: b.days_until });
+                else if (b.date) timeLabel = t('ends_on', { date: b.date });
                 else timeLabel = '';
               }
               else if (isExpired) timeLabel = t('expired');
@@ -180,17 +228,23 @@ export default function DashboardPage() {
               else timeLabel = b.label;
 
               return (
-                <Link key={i} to={`/servers/${b.server_id}/edit`}
+                <Link key={i} to={`/servers/${b.server_id}`}
                   className="flex items-center justify-between px-3 py-2.5 rounded-lg text-sm hover:bg-white/5 transition-colors"
                   style={{ background: 'var(--color-surface)' }}>
                   <div className="flex items-center gap-2">
                     {isUnknown && <AlertTriangle size={12} style={{ color: '#6b7280' }} />}
                     {(isDone || isStillBilled) && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#7f1d1d', color: '#f87171' }}>{t('contracts:is_cancelled')}</span>}
+                    {isPriceChange && <span className="text-[10px] uppercase tracking-wider px-1.5 py-0.5 rounded" style={{ background: '#92400e20', color: '#f59e0b' }}>⬆</span>}
                     <span className="font-semibold">{b.server_name}</span>
                     {b.provider_name && <span className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{b.provider_name}</span>}
                   </div>
                   <div className="flex items-center gap-3">
-                    {b.amount > 0 && <CostBadge amount={b.amount} />}
+                    {isPriceChange && b.old_cost ? (
+                      <span className="font-mono text-xs">
+                        <span style={{ color: 'var(--color-text-muted)' }}><CostBadge amount={b.old_cost} /></span>
+                        <span style={{ color: '#f59e0b' }}> → <CostBadge amount={b.amount} /></span>
+                      </span>
+                    ) : b.amount > 0 && <CostBadge amount={b.amount} />}
                     <span className="text-xs font-mono" style={{ color }}>{timeLabel}</span>
                   </div>
                 </Link>

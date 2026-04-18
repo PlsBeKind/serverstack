@@ -38,6 +38,7 @@ export const api = {
   createProvider: (data) => http.post('/providers', data).then(r => r.data),
   updateProvider: (id, data) => http.put(`/providers/${id}`, data).then(r => r.data),
   deleteProvider: (id) => http.delete(`/providers/${id}`),
+  applyPriceSurge: (id, data) => http.post(`/providers/${id}/price-surge`, data).then(r => r.data),
 
   // Servers
   getServers: () => http.get('/servers').then(r => r.data),
@@ -55,6 +56,8 @@ export const api = {
   deleteDisk: (serverId, diskId) => http.delete(`/servers/${serverId}/disks/${diskId}`),
   getCostHistory: (serverId) => http.get(`/servers/${serverId}/cost-history`).then(r => r.data),
   priceChange: (serverId, data) => http.post(`/servers/${serverId}/price-change`, data).then(r => r.data),
+  schedulePriceChange: (serverId, data) => http.post(`/servers/${serverId}/schedule-price-change`, data).then(r => r.data),
+  cancelScheduledPrice: (serverId) => http.delete(`/servers/${serverId}/schedule-price-change`),
   createServer: (data) => http.post('/servers', data).then(r => r.data),
   updateServer: (id, data) => http.put(`/servers/${id}`, data).then(r => r.data),
   deleteServer: (id) => http.delete(`/servers/${id}`),

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText, Tag, DollarSign, Activity } from 'lucide-react';
+import { ArrowLeft, Edit, Trash2, Eye, EyeOff, Network, Cog, KeyRound, HardDrive, Plus, X, FileText, Tag, DollarSign, TrendingUp, Activity } from 'lucide-react';
 import CostBadge from '../components/CostBadge.jsx';
 import TagPill from '../components/TagPill.jsx';
 import { api } from '../api/client.js';
@@ -21,6 +21,8 @@ export default function ServerDetailPage() {
   const [costHistory, setCostHistory] = useState([]);
   const [showPriceChange, setShowPriceChange] = useState(false);
   const [priceForm, setPriceForm] = useState({ new_cost: '', reason: 'price_increase' });
+  const [showSchedule, setShowSchedule] = useState(false);
+  const [scheduleForm, setScheduleForm] = useState({ new_cost: '', effective_date: '', reason: 'price_increase' });
   const [showSvcForm, setShowSvcForm] = useState(false);
   const [svcForm, setSvcForm] = useState({ name: '', category: '', port: '', url: '', domain: '', protocol: 'tcp', docker: false, notes: '' });
   const [showCredForm, setShowCredForm] = useState(false);
@@ -143,7 +145,7 @@ export default function ServerDetailPage() {
             {server.billing_cycle && (
               <div>
                 <p className="text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('contracts:billing_cycle')}</p>
-                <p className="text-sm capitalize">{server.billing_cycle}</p>
+                <p className="text-sm">{t(`contracts:cycle_${server.billing_cycle}`, server.billing_cycle)}</p>
               </div>
             )}
           </div>
@@ -237,6 +239,82 @@ export default function ServerDetailPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Pending Price Change */}
+      {server.monthly_cost > 0 && (
+        <div className="rounded-xl p-6" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)' }}>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="flex items-center gap-2 text-sm font-semibold">
+              <TrendingUp size={16} style={{ color: '#f59e0b' }} /> {t('schedule_price_change')}
+            </h3>
+            {!server.pending_cost && (
+              <button onClick={() => setShowSchedule(!showSchedule)} className="flex items-center gap-1 text-xs hover:underline" style={{ color: 'var(--color-primary)' }}>
+                {showSchedule ? <X size={12} /> : <Plus size={12} />} {showSchedule ? t('common:actions.cancel') : t('common:actions.add')}
+              </button>
+            )}
+          </div>
+
+          {/* Existing pending price */}
+          {server.pending_cost && (
+            <div className="flex items-center justify-between px-3 py-3 rounded-lg mb-3" style={{ background: '#92400e15', border: '1px solid #f59e0b30' }}>
+              <div>
+                <p className="text-sm font-semibold" style={{ color: '#f59e0b' }}>
+                  <CostBadge amount={server.monthly_cost} /> → <CostBadge amount={server.pending_cost} />
+                </p>
+                <p className="text-xs mt-0.5" style={{ color: 'var(--color-text-muted)' }}>
+                  {t('effective_on', { date: server.pending_cost_date })}
+                  {server.pending_cost_reason && ` · ${t(`reason_${server.pending_cost_reason}`, server.pending_cost_reason)}`}
+                </p>
+              </div>
+              <button onClick={async () => { await api.cancelScheduledPrice(id); loadData(); }}
+                className="text-xs px-2 py-1 rounded hover:bg-white/10" style={{ color: 'var(--color-danger)' }}>
+                {t('cancel_scheduled')}
+              </button>
+            </div>
+          )}
+
+          {/* Schedule form */}
+          {showSchedule && !server.pending_cost && (
+            <div className="p-4 rounded-lg space-y-3 animate-fade-in" style={{ background: 'var(--color-surface)' }}>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('new_price')}</label>
+                  <input type="text" inputMode="decimal" value={scheduleForm.new_cost} onChange={e => setScheduleForm(f => ({ ...f, new_cost: e.target.value }))}
+                    placeholder="0.00" className="w-full px-3 py-2 rounded-lg text-sm outline-none font-mono" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('effective_date')}</label>
+                  <input type="date" value={scheduleForm.effective_date} onChange={e => setScheduleForm(f => ({ ...f, effective_date: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }} />
+                </div>
+                <div>
+                  <label className="block text-xs font-medium mb-1 uppercase tracking-wider" style={{ color: 'var(--color-text-muted)' }}>{t('reason')}</label>
+                  <select value={scheduleForm.reason} onChange={e => setScheduleForm(f => ({ ...f, reason: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-lg text-sm outline-none" style={{ background: 'var(--color-surface-raised)', border: '1px solid var(--color-border)', color: 'var(--color-text)' }}>
+                    <option value="price_increase">{t('reason_price_increase')}</option>
+                    <option value="promo_end">{t('reason_promo_end')}</option>
+                    <option value="manual">{t('reason_manual')}</option>
+                  </select>
+                </div>
+              </div>
+              <div className="flex justify-end">
+                <button onClick={async () => {
+                  if (!scheduleForm.new_cost || !scheduleForm.effective_date) return;
+                  await api.schedulePriceChange(id, scheduleForm);
+                  setScheduleForm({ new_cost: '', effective_date: '', reason: 'price_increase' });
+                  setShowSchedule(false);
+                  loadData();
+                }} className="px-4 py-2 text-sm font-semibold text-white rounded-lg hover:scale-[1.02] transition-all"
+                  style={{ background: 'var(--color-primary)' }}>{t('common:actions.save')}</button>
+              </div>
+            </div>
+          )}
+
+          {!server.pending_cost && !showSchedule && (
+            <p className="text-xs" style={{ color: 'var(--color-text-muted)' }}>{t('common:actions.no_data')}</p>
+          )}
         </div>
       )}
 

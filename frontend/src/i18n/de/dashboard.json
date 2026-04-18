@@ -4,6 +4,7 @@
   "active_servers": "Aktive Server",
   "providers": "Anbieter",
   "total_monthly": "Monatliche Kosten",
+  "cost_breakdown": "Kosten\u00fcbersicht",
   "total_yearly": "J\u00e4hrliche Kosten",
   "promo_savings": "Promo-Ersparnis",
   "cost_by_provider": "Kosten nach Anbieter",
@@ -36,5 +37,6 @@
   "expired": "abgelaufen",
   "date_unknown": "Datum unbekannt",
   "auto_renewed": "automatisch verl\u00e4ngert",
+  "price_change_on": "Preis\u00e4nderung am {{date}}",
   "cost_trend": "Kostenentwicklung (12 Monate)"
 }
